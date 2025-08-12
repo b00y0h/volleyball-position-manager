@@ -1,103 +1,399 @@
-import Image from "next/image";
+"use client";
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 
+// Volleyball Rotations Visualizer — UPDATED
+// - Corrected rotation generation to ensure: Opposite players are 3 positions away (diagonal),
+//   i.e. pos + 3 (mod 6).
+// - Rotations are now generated programmatically from a single starting rotation so Rotation 2,
+//   Rotation 3, ... follow the standard clockwise rotation order.
+// - Added a dropdown to choose the displayed formation: "rotational position" (default),
+//   "serve/receive", and "base". Selecting any option animates players to that formation.
+// - Keeps Next/Prev rotation controls and a small Animate button for scripted sequences.
+
+const courtWidth = 600;
+const courtHeight = 360;
+
+const baseCoords = {
+  1: { x: courtWidth * 0.78, y: courtHeight * 0.82 }, // right-back (1)
+  2: { x: courtWidth * 0.78, y: courtHeight * 0.42 }, // right-front (2)
+  3: { x: courtWidth * 0.5, y: courtHeight * 0.42 }, // middle-front (3)
+  4: { x: courtWidth * 0.22, y: courtHeight * 0.42 }, // left-front (4)
+  5: { x: courtWidth * 0.22, y: courtHeight * 0.82 }, // left-back (5)
+  6: { x: courtWidth * 0.5, y: courtHeight * 0.82 }, // middle-back (6)
+};
+
+const serveReceiveCoords = {
+  SR_right: { x: courtWidth * 0.7, y: courtHeight * 0.7 },
+  SR_middle: { x: courtWidth * 0.5, y: courtHeight * 0.65 },
+  SR_left: { x: courtWidth * 0.3, y: courtHeight * 0.7 },
+  SR_frontRight: { x: courtWidth * 0.72, y: courtHeight * 0.5 },
+  SR_frontLeft: { x: courtWidth * 0.28, y: courtHeight * 0.5 },
+};
+
+// Players for 5-1 (single setter) — you can rename these to match your roster
+const players5_1 = [
+  { id: "S", name: "Setter", role: "S" },
+  { id: "Opp", name: "Opp", role: "Opp" },
+  { id: "OH1", name: "OH1", role: "OH" },
+  { id: "MB1", name: "MB1", role: "MB" },
+  { id: "OH2", name: "OH2", role: "OH" },
+  { id: "MB2", name: "MB2", role: "MB" },
+];
+
+// Players for 6-2 (two setters)
+const players6_2 = [
+  { id: "S1", name: "S1", role: "S" },
+  { id: "S2", name: "S2", role: "S" },
+  { id: "OH1", name: "OH1", role: "OH" },
+  { id: "MB1", name: "MB1", role: "MB" },
+  { id: "OH2", name: "OH2", role: "OH" },
+  { id: "MB2", name: "MB2", role: "MB" },
+];
+
+// Starting rotation (Rotation 1) — matches your requirement:
+// Setter in 1, OH1 in 2, MB1 in 3.
+// Opposite = 3 positions away (pos + 3), OH2 opposite OH1, MB2 opposite MB1.
+const baseRotation5_1 = {
+  1: "S",
+  2: "OH1",
+  3: "MB1",
+  4: "Opp",
+  5: "OH2",
+  6: "MB2",
+};
+
+// For 6-2, place the two setters at 1 and 6 so the acting setter is the back-row setter when appropriate
+const baseRotation6_2 = {
+  1: "S1",
+  2: "OH1",
+  3: "MB1",
+  4: "Opp",
+  5: "OH2",
+  6: "S2",
+};
+
+function generateRotationsFrom(baseMap) {
+  // produce an array of 6 rotation maps following clockwise rotation rules
+  const maps = [];
+  let cur = { ...baseMap };
+  for (let r = 0; r < 6; r++) {
+    maps.push({ ...cur });
+    const next = {};
+    // next[pos] = cur[pos+1] (where pos+1 wraps 1..6)
+    for (let pos = 1; pos <= 6; pos++) {
+      const from = (pos % 6) + 1; // 1->2, 2->3, ... 6->1
+      next[pos] = cur[from];
+    }
+    cur = next;
+  }
+  return maps;
+}
+
+const rotations_5_1 = generateRotationsFrom(baseRotation5_1);
+const rotations_6_2 = generateRotationsFrom(baseRotation6_2);
+
+function getServeReceiveTargets(rotationMap) {
+  // choose three primary receivers from back-row players in standard preference: 1 (right-back), 6 (mid-back), 5 (left-back)
+  const receiverOrder = [1, 6, 5];
+  const receivers = receiverOrder.map((pos) => rotationMap[pos]);
+  const targets = {};
+  if (receivers[0]) targets[receivers[0]] = serveReceiveCoords.SR_right;
+  if (receivers[1]) targets[receivers[1]] = serveReceiveCoords.SR_middle;
+  if (receivers[2]) targets[receivers[2]] = serveReceiveCoords.SR_left;
+  return targets;
+}
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [system, setSystem] = useState("5-1");
+  const [rotationIndex, setRotationIndex] = useState(0); // 0..5
+  const [formation, setFormation] = useState("rotational"); // 'rotational' | 'serveReceive' | 'base'
+  const [isAnimating, setIsAnimating] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const players = system === "5-1" ? players5_1 : players6_2;
+  const rotations = system === "5-1" ? rotations_5_1 : rotations_6_2;
+  const rotationMap = rotations[rotationIndex];
+
+  // Precompute serve-receive targets for the current rotation
+  const SRtargets = getServeReceiveTargets(rotationMap);
+
+  useEffect(() => {
+    // When formation changes, briefly set an animating flag to disable changing rotation during transition
+    setIsAnimating(true);
+    const t = setTimeout(() => setIsAnimating(false), 700); // animation window (ms)
+    return () => clearTimeout(t);
+  }, [formation]);
+
+  useEffect(() => {
+    // reset formation to rotational when rotation or system changes
+    setFormation("rotational");
+  }, [rotationIndex, system]);
+
+  function nextRotation() {
+    if (isAnimating) return;
+    setRotationIndex((r) => (r + 1) % 6);
+  }
+  function prevRotation() {
+    if (isAnimating) return;
+    setRotationIndex((r) => (r + 5) % 6);
+  }
+
+  // optional scripted animate from SR -> Base (kept for convenience)
+  async function animateSRtoBase() {
+    if (isAnimating) return;
+    setIsAnimating(true);
+    setFormation("serveReceive");
+    await wait(900);
+    setFormation("base");
+    await wait(900);
+    setFormation("rotational");
+    setIsAnimating(false);
+  }
+
+  return (
+    <div className="p-4 w-full max-w-5xl mx-auto">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-2xl font-semibold">
+          Volleyball Rotations Visualizer
+        </h2>
+        <div className="flex gap-2">
+          <select
+            value={system}
+            onChange={(e) => setSystem(e.target.value)}
+            className="px-3 py-1 border rounded"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <option value="5-1">5-1</option>
+            <option value="6-2">6-2</option>
+          </select>
+
+          <button
+            onClick={prevRotation}
+            className="px-3 py-1 border rounded hover:bg-gray-100"
+            disabled={isAnimating}
           >
-            Read our docs
-          </a>
+            Prev Rotation
+          </button>
+          <button
+            onClick={nextRotation}
+            className="px-3 py-1 border rounded hover:bg-gray-100"
+            disabled={isAnimating}
+          >
+            Next Rotation
+          </button>
+
+          <button
+            onClick={animateSRtoBase}
+            className={`px-3 py-1 rounded text-white ${
+              isAnimating ? "bg-gray-500" : "bg-blue-600 hover:bg-blue-700"
+            }`}
+            disabled={isAnimating}
+          >
+            {isAnimating ? "Animating..." : "Animate SR→Base"}
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </div>
+
+      <div className="flex gap-4">
+        <div className="bg-white p-4 rounded shadow flex-1">
+          <div className="mb-2 flex items-center justify-between">
+            <div>
+              System: <strong>{system}</strong>
+            </div>
+            <div>
+              Rotation: <strong>{rotationIndex + 1}</strong>
+            </div>
+            <div>
+              Formation:{" "}
+              <strong>
+                {formation === "rotational"
+                  ? "Rotational Position"
+                  : formation === "serveReceive"
+                  ? "Serve/Receive"
+                  : "Base (Attack)"}{" "}
+              </strong>
+            </div>
+          </div>
+
+          <div className="mb-3 flex items-center gap-3">
+            <label className="text-sm">Show formation:</label>
+            <select
+              value={formation}
+              onChange={(e) => setFormation(e.target.value)}
+              className="px-3 py-1 border rounded"
+            >
+              <option value="rotational">Rotational Position (default)</option>
+              <option value="serveReceive">Serve/Receive</option>
+              <option value="base">Base (Attack)</option>
+            </select>
+            <div className="text-xs text-gray-500">
+              (Selecting an option animates players to that formation)
+            </div>
+          </div>
+
+          <div className="w-full overflow-auto">
+            <svg
+              viewBox={`0 0 ${courtWidth} ${courtHeight}`}
+              width="100%"
+              height="auto"
+            >
+              <rect
+                x={0}
+                y={0}
+                width={courtWidth}
+                height={courtHeight}
+                fill="#f7f7f9"
+                stroke="#ccc"
+                rx={8}
+              />
+              <line
+                x1={0}
+                y1={courtHeight * 0.12}
+                x2={courtWidth}
+                y2={courtHeight * 0.12}
+                stroke="#333"
+                strokeWidth={3}
+              />
+              <line
+                x1={0}
+                y1={courtHeight * 0.3}
+                x2={courtWidth}
+                y2={courtHeight * 0.3}
+                stroke="#aaa"
+                strokeDasharray="6 4"
+              />
+
+              {/* base position markers */}
+              {Object.entries(baseCoords).map(([pos, c]) => (
+                <g key={`marker-${pos}`}>
+                  <circle cx={c.x} cy={c.y} r={6} fill="#ddd" />
+                  <text x={c.x + 10} y={c.y + 4} fontSize={12} fill="#666">
+                    {pos}
+                  </text>
+                </g>
+              ))}
+
+              {/* players */}
+              {players.map((p) => {
+                // default target
+                let target = { x: -50, y: -50 };
+
+                // find where this player sits in rotationMap (pos number)
+                const myEntry = Object.entries(rotationMap).find(
+                  ([k, v]) => v === p.id
+                );
+                const posNum = myEntry ? Number(myEntry[0]) : null;
+
+                if (formation === "rotational") {
+                  if (posNum) target = baseCoords[posNum];
+                } else if (formation === "serveReceive") {
+                  if (SRtargets[p.id]) {
+                    target = SRtargets[p.id];
+                  } else if (posNum) {
+                    // non-receivers move toward front pockets
+                    target = { ...baseCoords[posNum] };
+                    if (posNum === 2 || posNum === 3 || posNum === 4)
+                      target.y -= 40;
+                  }
+                } else if (formation === "base") {
+                  if (posNum) {
+                    target = { ...baseCoords[posNum] };
+                    // Hitters open up slightly for attack
+                    if (p.role === "OH") {
+                      if (posNum === 2) target.x += 18;
+                      if (posNum === 4) target.x -= 18;
+                      target.y -= 20;
+                    }
+                    if (p.role === "MB") {
+                      if (posNum === 3) target.y -= 10;
+                    }
+                    // Setters (back-row) step up a bit if they're in back positions
+                    if (p.role === "S") {
+                      if (posNum === 1 || posNum === 6) target.y -= 10;
+                    }
+                  }
+                }
+
+                return (
+                  <motion.g
+                    key={p.id}
+                    initial={false}
+                    animate={{ cx: target.x, cy: target.y }}
+                    transition={{ type: "spring", stiffness: 280, damping: 28 }}
+                  >
+                    <circle cx={target.x} cy={target.y} r={18} fill="#1d4ed8" />
+                    <text
+                      x={target.x}
+                      y={target.y + 5}
+                      fontSize={10}
+                      textAnchor="middle"
+                      fill="#fff"
+                    >
+                      {p.id}
+                    </text>
+                  </motion.g>
+                );
+              })}
+            </svg>
+          </div>
+
+          <div className="mt-3 text-sm text-gray-600">
+            Tip: Use the <em>Show formation</em> dropdown to switch between
+            Rotational Position, Serve/Receive, and Base. The visualizer now
+            generates rotations programmatically so Rotation 2, 3, ... follow
+            standard clockwise rotation (e.g. Rotation 2 places the Setter at 6,
+            OH1 at 1, MB1 at 2, etc.).
+          </div>
+        </div>
+
+        <div className="w-72 bg-white p-4 rounded shadow">
+          <h3 className="font-semibold mb-2">Roster / Rotation Table</h3>
+          <table className="w-full text-sm">
+            <thead>
+              <tr>
+                <th className="text-left">Pos</th>
+                <th className="text-left">Player</th>
+                <th className="text-left">Role</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Object.entries(rotationMap).map(([pos, pid]) => {
+                const p = players.find((x) => x.id === pid) || {
+                  name: pid,
+                  role: "",
+                };
+                return (
+                  <tr key={pos} className="border-t">
+                    <td className="py-1">{pos}</td>
+                    <td className="py-1">{p.name}</td>
+                    <td className="py-1">{p.role}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <div className="mt-4">
+            <h4 className="font-medium">Controls</h4>
+            <ol className="text-sm mt-2 list-decimal ml-5 space-y-1">
+              <li>Switch system (5-1 or 6-2).</li>
+              <li>
+                Next/Prev to step rotations 1→6 (rotations move clockwise).
+              </li>
+              <li>
+                Use the <em>Show formation</em> dropdown to animate between
+                Rotational, Serve/Receive, and Base.
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 text-xs text-gray-500">
+        Note: The starting rotation follows your specification: Setter in 1, OH1
+        in 2, MB1 in 3. Opposite players are placed 3 positions away so they are
+        diagonally opposite (e.g. Opp at 4 when Setter is at 1). Adjust player
+        IDs to match your roster names and roles; the rotation generator will
+        follow the same rules.
+      </div>
     </div>
   );
 }
