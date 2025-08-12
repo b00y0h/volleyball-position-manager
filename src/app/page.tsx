@@ -14,7 +14,7 @@ import { motion } from "framer-motion";
 const courtWidth = 600;
 const courtHeight = 360;
 
-const baseCoords = {
+const baseCoords: Record<number, { x: number; y: number }> = {
   1: { x: courtWidth * 0.78, y: courtHeight * 0.82 }, // right-back (1)
   2: { x: courtWidth * 0.78, y: courtHeight * 0.42 }, // right-front (2)
   3: { x: courtWidth * 0.5, y: courtHeight * 0.42 }, // middle-front (3)
@@ -31,8 +31,15 @@ const serveReceiveCoords = {
   SR_frontLeft: { x: courtWidth * 0.28, y: courtHeight * 0.5 },
 };
 
+// Player type definition
+interface Player {
+  id: string;
+  name: string;
+  role: string;
+}
+
 // Players for 5-1 (single setter) — you can rename these to match your roster
-const players5_1 = [
+const players5_1: Player[] = [
   { id: "S", name: "Setter", role: "S" },
   { id: "Opp", name: "Opp", role: "Opp" },
   { id: "OH1", name: "OH1", role: "OH" },
@@ -42,7 +49,7 @@ const players5_1 = [
 ];
 
 // Players for 6-2 (two setters)
-const players6_2 = [
+const players6_2: Player[] = [
   { id: "S1", name: "S1", role: "S" },
   { id: "S2", name: "S2", role: "S" },
   { id: "OH1", name: "OH1", role: "OH" },
@@ -73,13 +80,13 @@ const baseRotation6_2 = {
   6: "S2",
 };
 
-function generateRotationsFrom(baseMap) {
+function generateRotationsFrom(baseMap: Record<number, string>) {
   // produce an array of 6 rotation maps following clockwise rotation rules
-  const maps = [];
+  const maps: Record<number, string>[] = [];
   let cur = { ...baseMap };
   for (let r = 0; r < 6; r++) {
     maps.push({ ...cur });
-    const next = {};
+    const next: Record<number, string> = {};
     // next[pos] = cur[pos+1] (where pos+1 wraps 1..6)
     for (let pos = 1; pos <= 6; pos++) {
       const from = (pos % 6) + 1; // 1->2, 2->3, ... 6->1
@@ -93,11 +100,11 @@ function generateRotationsFrom(baseMap) {
 const rotations_5_1 = generateRotationsFrom(baseRotation5_1);
 const rotations_6_2 = generateRotationsFrom(baseRotation6_2);
 
-function getServeReceiveTargets(rotationMap) {
+function getServeReceiveTargets(rotationMap: Record<number, string>) {
   // choose three primary receivers from back-row players in standard preference: 1 (right-back), 6 (mid-back), 5 (left-back)
   const receiverOrder = [1, 6, 5];
   const receivers = receiverOrder.map((pos) => rotationMap[pos]);
-  const targets = {};
+  const targets: Record<string, { x: number; y: number }> = {};
   if (receivers[0]) targets[receivers[0]] = serveReceiveCoords.SR_right;
   if (receivers[1]) targets[receivers[1]] = serveReceiveCoords.SR_middle;
   if (receivers[2]) targets[receivers[2]] = serveReceiveCoords.SR_left;
@@ -108,6 +115,10 @@ export default function Home() {
   const [rotationIndex, setRotationIndex] = useState(0); // 0..5
   const [formation, setFormation] = useState("rotational"); // 'rotational' | 'serveReceive' | 'base'
   const [isAnimating, setIsAnimating] = useState(false);
+
+  // Helper function for delays
+  const wait = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   const players = system === "5-1" ? players5_1 : players6_2;
   const rotations = system === "5-1" ? rotations_5_1 : rotations_6_2;
@@ -278,7 +289,7 @@ export default function Home() {
 
                 // find where this player sits in rotationMap (pos number)
                 const myEntry = Object.entries(rotationMap).find(
-                  ([k, v]) => v === p.id
+                  ([, v]) => v === p.id
                 );
                 const posNum = myEntry ? Number(myEntry[0]) : null;
 
