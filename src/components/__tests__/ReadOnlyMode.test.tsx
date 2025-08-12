@@ -20,6 +20,7 @@ const mockPlayer = {
 };
 
 const mockPosition = { x: 100, y: 100 };
+const mockCourtDimensions = { courtWidth: 600, courtHeight: 360 };
 
 describe("Read-Only Mode", () => {
   beforeEach(() => {
@@ -36,6 +37,7 @@ describe("Read-Only Mode", () => {
           system="5-1"
           rotation={0}
           formation="rotational"
+          courtDimensions={mockCourtDimensions}
           isReadOnly={true}
         />
       </svg>
@@ -59,6 +61,7 @@ describe("Read-Only Mode", () => {
           system="5-1"
           rotation={0}
           formation="rotational"
+          courtDimensions={mockCourtDimensions}
           isReadOnly={true}
         />
       </svg>
@@ -89,6 +92,7 @@ describe("Read-Only Mode", () => {
           system="5-1"
           rotation={0}
           formation="rotational"
+          courtDimensions={mockCourtDimensions}
           isReadOnly={true}
           onResetPosition={vi.fn()}
         />
@@ -117,6 +121,7 @@ describe("Read-Only Mode", () => {
           system="5-1"
           rotation={0}
           formation="rotational"
+          courtDimensions={mockCourtDimensions}
           isReadOnly={false}
         />
       </svg>

@@ -30,6 +30,7 @@ const mockPlayer = {
 };
 
 const mockPosition = { x: 100, y: 100 };
+const mockCourtDimensions = { courtWidth: 600, courtHeight: 360 };
 
 describe("DraggablePlayer", () => {
   beforeEach(() => {
@@ -50,6 +51,7 @@ describe("DraggablePlayer", () => {
           system="5-1"
           rotation={0}
           formation="rotational"
+          courtDimensions={mockCourtDimensions}
         />
       </svg>
     );
@@ -70,6 +72,7 @@ describe("DraggablePlayer", () => {
           system="5-1"
           rotation={0}
           formation="rotational"
+          courtDimensions={mockCourtDimensions}
         />
       </svg>
     );
@@ -96,6 +99,7 @@ describe("DraggablePlayer", () => {
           system="5-1"
           rotation={0}
           formation="rotational"
+          courtDimensions={mockCourtDimensions}
           onDragStart={onDragStart}
         />
       </svg>
@@ -117,6 +121,7 @@ describe("DraggablePlayer", () => {
           system="5-1"
           rotation={0}
           formation="rotational"
+          courtDimensions={mockCourtDimensions}
           isReadOnly={true}
         />
       </svg>
@@ -136,6 +141,7 @@ describe("DraggablePlayer", () => {
           system="5-1"
           rotation={0}
           formation="rotational"
+          courtDimensions={mockCourtDimensions}
         />
       </svg>
     );

@@ -1,9 +1,14 @@
 "use client";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { usePositionManager } from "@/hooks/usePositionManager";
 import { DraggablePlayer } from "@/components";
 import { SystemType, FormationType } from "@/types";
 import { URLStateManager } from "@/utils/URLStateManager";
+import { useNotifications } from "@/components/NotificationSystem";
+import { useStorageWithFallback } from "@/hooks/useStorageWithFallback";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import { BrowserCompatibilityWarning } from "@/components/BrowserCompatibilityWarning";
+import { EnhancedPositionValidator } from "@/utils/enhancedValidation";
 
 // Volleyball Rotations Visualizer — UPDATED
 // - Corrected rotation generation to ensure: Opposite players are 3 positions away (diagonal),
@@ -14,25 +19,109 @@ import { URLStateManager } from "@/utils/URLStateManager";
 //   "serve/receive", and "base". Selecting any option animates players to that formation.
 // - Keeps Next/Prev rotation controls and a small Animate button for scripted sequences.
 
-const courtWidth = 600;
-const courtHeight = 360;
+// Base court dimensions (aspect ratio 5:3 for volleyball court)
+const BASE_COURT_WIDTH = 600;
+const BASE_COURT_HEIGHT = 360;
+const COURT_ASPECT_RATIO = BASE_COURT_WIDTH / BASE_COURT_HEIGHT;
 
-const baseCoords: Record<number, { x: number; y: number }> = {
-  1: { x: courtWidth * 0.78, y: courtHeight * 0.82 }, // right-back (1)
-  2: { x: courtWidth * 0.78, y: courtHeight * 0.42 }, // right-front (2)
-  3: { x: courtWidth * 0.5, y: courtHeight * 0.42 }, // middle-front (3)
-  4: { x: courtWidth * 0.22, y: courtHeight * 0.42 }, // left-front (4)
-  5: { x: courtWidth * 0.22, y: courtHeight * 0.82 }, // left-back (5)
-  6: { x: courtWidth * 0.5, y: courtHeight * 0.82 }, // middle-back (6)
-};
+// Custom hook for window size tracking
+function useWindowSize() {
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== "undefined" ? window.innerWidth : 1200,
+    height: typeof window !== "undefined" ? window.innerHeight : 800,
+  });
 
-const serveReceiveCoords = {
-  SR_right: { x: courtWidth * 0.7, y: courtHeight * 0.7 },
-  SR_middle: { x: courtWidth * 0.5, y: courtHeight * 0.65 },
-  SR_left: { x: courtWidth * 0.3, y: courtHeight * 0.7 },
-  SR_frontRight: { x: courtWidth * 0.72, y: courtHeight * 0.5 },
-  SR_frontLeft: { x: courtWidth * 0.28, y: courtHeight * 0.5 },
-};
+  useEffect(() => {
+    function handleResize() {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+
+    window.addEventListener("resize", handleResize);
+    handleResize(); // Set initial size
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return windowSize;
+}
+
+// Function to calculate responsive court dimensions
+function calculateCourtDimensions(windowWidth: number, windowHeight: number) {
+  // Reserve space for UI elements
+  const SIDEBAR_WIDTH = 300; // Right sidebar
+  const HEADER_HEIGHT = 200; // Top controls and status
+  const FOOTER_HEIGHT = 100; // Bottom info
+  const PADDING = 80; // General padding
+
+  // Available space for the court
+  const availableWidth = windowWidth - SIDEBAR_WIDTH - PADDING;
+  const availableHeight =
+    windowHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING;
+
+  // Calculate court size maintaining aspect ratio
+  let courtWidth = availableWidth;
+  let courtHeight = courtWidth / COURT_ASPECT_RATIO;
+
+  // If height is too large, constrain by height instead
+  if (courtHeight > availableHeight) {
+    courtHeight = availableHeight;
+    courtWidth = courtHeight * COURT_ASPECT_RATIO;
+  }
+
+  // Ensure minimum size for usability
+  const MIN_WIDTH = 400;
+  const MIN_HEIGHT = MIN_WIDTH / COURT_ASPECT_RATIO;
+
+  courtWidth = Math.max(courtWidth, MIN_WIDTH);
+  courtHeight = Math.max(courtHeight, MIN_HEIGHT);
+
+  return { courtWidth, courtHeight };
+}
+
+// Function to scale coordinates based on court size
+function scaleCoordinates(
+  coords: Record<number, { x: number; y: number }>,
+  courtWidth: number,
+  courtHeight: number
+): Record<number, { x: number; y: number }> {
+  const scaleX = courtWidth / BASE_COURT_WIDTH;
+  const scaleY = courtHeight / BASE_COURT_HEIGHT;
+
+  const scaledCoords: Record<number, { x: number; y: number }> = {};
+  for (const [key, coord] of Object.entries(coords)) {
+    scaledCoords[parseInt(key)] = {
+      x: coord.x * scaleX,
+      y: coord.y * scaleY,
+    };
+  }
+  return scaledCoords;
+}
+
+// Function to generate base court coordinates based on dimensions
+function getBaseCoords(courtWidth: number, courtHeight: number): Record<number, { x: number; y: number }> {
+  return {
+    1: { x: courtWidth * 0.78, y: courtHeight * 0.82 }, // right-back (1)
+    2: { x: courtWidth * 0.78, y: courtHeight * 0.42 }, // right-front (2)
+    3: { x: courtWidth * 0.5, y: courtHeight * 0.42 }, // middle-front (3)
+    4: { x: courtWidth * 0.22, y: courtHeight * 0.42 }, // left-front (4)
+    5: { x: courtWidth * 0.22, y: courtHeight * 0.82 }, // left-back (5)
+    6: { x: courtWidth * 0.5, y: courtHeight * 0.82 }, // middle-back (6)
+  };
+}
+
+// Function to generate serve/receive coordinates based on dimensions
+function getServeReceiveCoords(courtWidth: number, courtHeight: number) {
+  return {
+    SR_right: { x: courtWidth * 0.7, y: courtHeight * 0.7 },
+    SR_middle: { x: courtWidth * 0.5, y: courtHeight * 0.65 },
+    SR_left: { x: courtWidth * 0.3, y: courtHeight * 0.7 },
+    SR_frontRight: { x: courtWidth * 0.72, y: courtHeight * 0.5 },
+    SR_frontLeft: { x: courtWidth * 0.28, y: courtHeight * 0.5 },
+  };
+}
 
 // Player type definition
 interface Player {
@@ -103,10 +192,11 @@ function generateRotationsFrom(baseMap: Record<number, string>) {
 const rotations_5_1 = generateRotationsFrom(baseRotation5_1);
 const rotations_6_2 = generateRotationsFrom(baseRotation6_2);
 
-function getServeReceiveTargets(rotationMap: Record<number, string>) {
+function getServeReceiveTargets(rotationMap: Record<number, string>, courtWidth: number, courtHeight: number) {
   // choose three primary receivers from back-row players in standard preference: 1 (right-back), 6 (mid-back), 5 (left-back)
   const receiverOrder = [1, 6, 5];
   const receivers = receiverOrder.map((pos) => rotationMap[pos]);
+  const serveReceiveCoords = getServeReceiveCoords(courtWidth, courtHeight);
   const targets: Record<string, { x: number; y: number }> = {};
   if (receivers[0]) targets[receivers[0]] = serveReceiveCoords.SR_right;
   if (receivers[1]) targets[receivers[1]] = serveReceiveCoords.SR_middle;
@@ -127,6 +217,72 @@ export default function Home() {
     source: "url" | "localStorage" | "default";
     message?: string;
   }>({ loaded: false, source: "default" });
+  
+  // Track hydration to prevent SSR/client mismatch
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  // Get window size for responsive court sizing
+  const windowSize = useWindowSize();
+  
+  // Initialize notification system
+  const { addNotification } = useNotifications();
+  
+  // Initialize storage with fallback
+  const storage = useStorageWithFallback({
+    onError: (error) => {
+      addNotification({
+        type: "error",
+        title: "Storage Error",
+        message: error.message,
+        actions: [
+          {
+            label: "Retry",
+            onClick: () => storage.retry(),
+            variant: "primary",
+          },
+          {
+            label: "Clear Data",
+            onClick: () => {
+              storage.clear();
+              addNotification({
+                type: "success",
+                title: "Storage Cleared",
+                message: "All stored data has been cleared. You can continue using the app.",
+              });
+            },
+            variant: "secondary",
+          },
+        ],
+      });
+    },
+    onFallbackActivated: () => {
+      addNotification({
+        type: "warning",
+        title: "Using Temporary Storage",
+        message: "Your positions will only be saved for this session.",
+        duration: 8000,
+      });
+    },
+  });
+  
+  // Calculate responsive court dimensions, but use base dimensions during SSR
+  const courtDimensions = useMemo(() => {
+    if (!isHydrated) {
+      // Use base dimensions during SSR to match initial render
+      return { courtWidth: BASE_COURT_WIDTH, courtHeight: BASE_COURT_HEIGHT };
+    }
+    return calculateCourtDimensions(windowSize.width, windowSize.height);
+  }, [windowSize.width, windowSize.height, isHydrated]);
+  
+  // Initialize enhanced position validator
+  const positionValidator = useMemo(() => {
+    return new EnhancedPositionValidator(courtDimensions.courtWidth, courtDimensions.courtHeight);
+  }, [courtDimensions.courtWidth, courtDimensions.courtHeight]);
+  
+  // Set hydrated flag after component mounts
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   // Initialize position manager
   const positionManager = usePositionManager();
@@ -298,42 +454,88 @@ export default function Home() {
   const rotationMap = rotations[rotationIndex];
 
   // Precompute serve-receive targets for the current rotation
-  const SRtargets = getServeReceiveTargets(rotationMap);
+  const SRtargets = getServeReceiveTargets(rotationMap, courtDimensions.courtWidth, courtDimensions.courtHeight);
+  
+  // Get base coordinates for current court dimensions
+  const baseCoords = getBaseCoords(courtDimensions.courtWidth, courtDimensions.courtHeight);
 
-  // Drag event handlers
+  // Drag event handlers with enhanced error handling
   const handleDragStart = useCallback(
     (playerId: string) => {
       if (!isReadOnly) {
-        setDraggedPlayer(playerId);
+        try {
+          setDraggedPlayer(playerId);
+        } catch (error) {
+          addNotification({
+            type: "error",
+            title: "Drag Error",
+            message: "Failed to start dragging player. Please try again.",
+          });
+        }
       }
     },
-    [isReadOnly]
+    [isReadOnly, addNotification]
   );
 
   const handleDragEnd = useCallback(
     (playerId: string, success: boolean) => {
-      setDraggedPlayer(null);
-      if (success && !isReadOnly) {
-        // Position was successfully updated by the position manager
-        console.log(`Player ${playerId} position updated successfully`);
+      try {
+        setDraggedPlayer(null);
+        
+        if (success && !isReadOnly) {
+          addNotification({
+            type: "success",
+            title: "Position Updated",
+            message: `${playerId} has been moved to a new position.`,
+            duration: 2000,
+          });
+        } else if (!success && !isReadOnly) {
+          addNotification({
+            type: "error",
+            title: "Invalid Position", 
+            message: `Cannot place ${playerId} at this location. Please try a different position.`,
+            duration: 4000,
+          });
+        }
+      } catch (error) {
+        addNotification({
+          type: "error",
+          title: "Position Error",
+          message: "An error occurred while updating the player position.",
+        });
       }
     },
-    [isReadOnly]
+    [isReadOnly, addNotification]
   );
 
-  // Reset individual position handler
+  // Reset individual position handler with error handling
   const handleResetPosition = useCallback(
     (playerId: string) => {
       if (!isReadOnly) {
-        positionManager.resetPosition(
-          system,
-          rotationIndex,
-          formation,
-          playerId
-        );
+        try {
+          positionManager.resetPosition(
+            system,
+            rotationIndex,
+            formation,
+            playerId
+          );
+          
+          addNotification({
+            type: "info",
+            title: "Position Reset",
+            message: `${playerId} has been reset to the default position.`,
+            duration: 2000,
+          });
+        } catch (error) {
+          addNotification({
+            type: "error",
+            title: "Reset Error",
+            message: `Failed to reset ${playerId}'s position. Please try again.`,
+          });
+        }
       }
     },
-    [positionManager, system, rotationIndex, formation, isReadOnly]
+    [positionManager, system, rotationIndex, formation, isReadOnly, addNotification]
   );
 
   useEffect(() => {
@@ -750,8 +952,39 @@ export default function Home() {
                 Shared View
               </div>
             )}
-            <svg
-              viewBox={`0 0 ${courtWidth} ${courtHeight}`}
+            
+            <ErrorBoundary
+              fallback={(error, resetError) => (
+                <div className="flex flex-col items-center justify-center p-8 bg-red-50 dark:bg-red-900/20 border-2 border-dashed border-red-300 dark:border-red-700 rounded-lg">
+                  <svg className="w-12 h-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <h3 className="text-lg font-medium text-red-700 dark:text-red-300 mb-2">
+                    Court Rendering Error
+                  </h3>
+                  <p className="text-sm text-red-600 dark:text-red-400 text-center mb-4 max-w-md">
+                    The volleyball court failed to render properly. This might be due to browser compatibility issues.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={resetError}
+                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                    >
+                      Try Again
+                    </button>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
+                    >
+                      Reload Page
+                    </button>
+                  </div>
+                </div>
+              )}
+            >
+              <svg
+              data-testid="volleyball-court"
+              viewBox={`0 0 ${courtDimensions.courtWidth} ${courtDimensions.courtHeight}`}
               width="100%"
               height="auto"
               style={{
@@ -767,25 +1000,25 @@ export default function Home() {
               <rect
                 x={0}
                 y={0}
-                width={courtWidth}
-                height={courtHeight}
+                width={courtDimensions.courtWidth}
+                height={courtDimensions.courtHeight}
                 fill="#f7f7f9"
                 stroke="#ccc"
                 rx={8}
               />
               <line
                 x1={0}
-                y1={courtHeight * 0.12}
-                x2={courtWidth}
-                y2={courtHeight * 0.12}
+                y1={courtDimensions.courtHeight * 0.12}
+                x2={courtDimensions.courtWidth}
+                y2={courtDimensions.courtHeight * 0.12}
                 stroke="#333"
                 strokeWidth={3}
               />
               <line
                 x1={0}
-                y1={courtHeight * 0.3}
-                x2={courtWidth}
-                y2={courtHeight * 0.3}
+                y1={courtDimensions.courtHeight * 0.3}
+                x2={courtDimensions.courtWidth}
+                y2={courtDimensions.courtHeight * 0.3}
                 stroke="#aaa"
                 strokeDasharray="6 4"
               />
@@ -825,21 +1058,24 @@ export default function Home() {
                   } else if (posNum) {
                     fallbackTarget = { ...baseCoords[posNum] };
                     if (posNum === 2 || posNum === 3 || posNum === 4)
-                      fallbackTarget.y -= 40;
+                      fallbackTarget.y -= (courtDimensions.courtHeight / BASE_COURT_HEIGHT) * 40;
                   }
                 } else if (formation === "base") {
                   if (posNum) {
                     fallbackTarget = { ...baseCoords[posNum] };
+                    const scaleX = courtDimensions.courtWidth / BASE_COURT_WIDTH;
+                    const scaleY = courtDimensions.courtHeight / BASE_COURT_HEIGHT;
+                    
                     if (p.role === "OH") {
-                      if (posNum === 2) fallbackTarget.x += 18;
-                      if (posNum === 4) fallbackTarget.x -= 18;
-                      fallbackTarget.y -= 20;
+                      if (posNum === 2) fallbackTarget.x += 18 * scaleX;
+                      if (posNum === 4) fallbackTarget.x -= 18 * scaleX;
+                      fallbackTarget.y -= 20 * scaleY;
                     }
                     if (p.role === "MB") {
-                      if (posNum === 3) fallbackTarget.y -= 10;
+                      if (posNum === 3) fallbackTarget.y -= 10 * scaleY;
                     }
                     if (p.role === "S") {
-                      if (posNum === 1 || posNum === 6) fallbackTarget.y -= 10;
+                      if (posNum === 1 || posNum === 6) fallbackTarget.y -= 10 * scaleY;
                     }
                   }
                 }
@@ -855,6 +1091,7 @@ export default function Home() {
                     system={system}
                     rotation={rotationIndex}
                     formation={formation}
+                    courtDimensions={courtDimensions}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                     onResetPosition={handleResetPosition}
@@ -863,6 +1100,7 @@ export default function Home() {
                 );
               })}
             </svg>
+            </ErrorBoundary>
           </div>
 
           <div className="mt-3 text-sm text-gray-600 dark:text-gray-400 space-y-2">
@@ -997,6 +1235,9 @@ export default function Home() {
           </div>
         </div>
       )}
+      
+      {/* Browser Compatibility Warning */}
+      <BrowserCompatibilityWarning />
     </div>
   );
 }

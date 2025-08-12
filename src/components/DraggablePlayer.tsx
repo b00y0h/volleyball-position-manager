@@ -22,6 +22,7 @@ interface DraggablePlayerProps {
   system: SystemType;
   rotation: number;
   formation: FormationType;
+  courtDimensions: { courtWidth: number; courtHeight: number };
   isReadOnly?: boolean;
   onDragStart?: (playerId: string) => void;
   onDragEnd?: (playerId: string, success: boolean) => void;
@@ -41,6 +42,7 @@ export function DraggablePlayer({
   system,
   rotation,
   formation,
+  courtDimensions,
   isReadOnly = false,
   onDragStart,
   onDragEnd,
@@ -87,12 +89,12 @@ export function DraggablePlayer({
     (pos: { x: number; y: number }): boolean => {
       return (
         pos.x >= PLAYER_RADIUS &&
-        pos.x <= COURT_DIMENSIONS.width - PLAYER_RADIUS &&
+        pos.x <= courtDimensions.courtWidth - PLAYER_RADIUS &&
         pos.y >= PLAYER_RADIUS &&
-        pos.y <= COURT_DIMENSIONS.height - PLAYER_RADIUS
+        pos.y <= courtDimensions.courtHeight - PLAYER_RADIUS
       );
     },
-    []
+    [courtDimensions.courtWidth, courtDimensions.courtHeight]
   );
 
   // Handle drag start
