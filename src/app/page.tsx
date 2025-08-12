@@ -1,6 +1,9 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
+import { usePositionManager } from "@/hooks/usePositionManager";
+import { DraggablePlayer } from "@/components";
+import { SystemType, FormationType } from "@/types";
 
 // Volleyball Rotations Visualizer — UPDATED
 // - Corrected rotation generation to ensure: Opposite players are 3 positions away (diagonal),
@@ -111,10 +114,14 @@ function getServeReceiveTargets(rotationMap: Record<number, string>) {
   return targets;
 }
 export default function Home() {
-  const [system, setSystem] = useState("5-1");
+  const [system, setSystem] = useState<SystemType>("5-1");
   const [rotationIndex, setRotationIndex] = useState(0); // 0..5
-  const [formation, setFormation] = useState("rotational"); // 'rotational' | 'serveReceive' | 'base'
+  const [formation, setFormation] = useState<FormationType>("rotational");
   const [isAnimating, setIsAnimating] = useState(false);
+  const [draggedPlayer, setDraggedPlayer] = useState<string | null>(null);
+
+  // Initialize position manager
+  const positionManager = usePositionManager();
 
   // Helper function for delays
   const wait = (ms: number) =>
@@ -126,6 +133,19 @@ export default function Home() {
 
   // Precompute serve-receive targets for the current rotation
   const SRtargets = getServeReceiveTargets(rotationMap);
+
+  // Drag event handlers
+  const handleDragStart = useCallback((playerId: string) => {
+    setDraggedPlayer(playerId);
+  }, []);
+
+  const handleDragEnd = useCallback((playerId: string, success: boolean) => {
+    setDraggedPlayer(null);
+    if (success) {
+      // Position was successfully updated by the position manager
+      console.log(`Player ${playerId} position updated successfully`);
+    }
+  }, []);
 
   useEffect(() => {
     // When formation changes, briefly set an animating flag to disable changing rotation during transition
@@ -224,6 +244,31 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Position manager status */}
+          {positionManager.isLoading && (
+            <div className="mb-2 text-sm text-blue-600">
+              Loading saved positions...
+            </div>
+          )}
+
+          {positionManager.error && (
+            <div className="mb-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+              Error: {positionManager.error}
+              <button
+                onClick={positionManager.clearError}
+                className="ml-2 text-red-800 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {draggedPlayer && (
+            <div className="mb-2 text-sm text-green-600">
+              Dragging player: <strong>{draggedPlayer}</strong>
+            </div>
+          )}
+
           <div className="mb-3 flex items-center gap-3">
             <label className="text-sm">Show formation:</label>
             <select
@@ -238,6 +283,27 @@ export default function Home() {
             <div className="text-xs text-gray-500">
               (Selecting an option animates players to that formation)
             </div>
+
+            {/* Reset controls */}
+            {positionManager.isFormationCustomized(
+              system,
+              rotationIndex,
+              formation
+            ) && (
+              <button
+                onClick={() =>
+                  positionManager.resetFormation(
+                    system,
+                    rotationIndex,
+                    formation
+                  )
+                }
+                className="ml-3 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
+                disabled={isAnimating}
+              >
+                Reset {formation} positions
+              </button>
+            )}
           </div>
 
           <div className="w-full overflow-auto">
@@ -245,6 +311,10 @@ export default function Home() {
               viewBox={`0 0 ${courtWidth} ${courtHeight}`}
               width="100%"
               height="auto"
+              style={{
+                cursor: draggedPlayer ? "grabbing" : "default",
+                userSelect: "none",
+              }}
             >
               <rect
                 x={0}
@@ -284,63 +354,62 @@ export default function Home() {
 
               {/* players */}
               {players.map((p) => {
-                // default target
-                let target = { x: -50, y: -50 };
+                // Get position from position manager (includes custom positions)
+                const position = positionManager.getPosition(
+                  system,
+                  rotationIndex,
+                  formation,
+                  p.id
+                );
 
-                // find where this player sits in rotationMap (pos number)
+                // Fallback to calculated position if no position manager data
+                let fallbackTarget = { x: -50, y: -50 };
                 const myEntry = Object.entries(rotationMap).find(
                   ([, v]) => v === p.id
                 );
                 const posNum = myEntry ? Number(myEntry[0]) : null;
 
                 if (formation === "rotational") {
-                  if (posNum) target = baseCoords[posNum];
+                  if (posNum) fallbackTarget = baseCoords[posNum];
                 } else if (formation === "serveReceive") {
                   if (SRtargets[p.id]) {
-                    target = SRtargets[p.id];
+                    fallbackTarget = SRtargets[p.id];
                   } else if (posNum) {
-                    // non-receivers move toward front pockets
-                    target = { ...baseCoords[posNum] };
+                    fallbackTarget = { ...baseCoords[posNum] };
                     if (posNum === 2 || posNum === 3 || posNum === 4)
-                      target.y -= 40;
+                      fallbackTarget.y -= 40;
                   }
                 } else if (formation === "base") {
                   if (posNum) {
-                    target = { ...baseCoords[posNum] };
-                    // Hitters open up slightly for attack
+                    fallbackTarget = { ...baseCoords[posNum] };
                     if (p.role === "OH") {
-                      if (posNum === 2) target.x += 18;
-                      if (posNum === 4) target.x -= 18;
-                      target.y -= 20;
+                      if (posNum === 2) fallbackTarget.x += 18;
+                      if (posNum === 4) fallbackTarget.x -= 18;
+                      fallbackTarget.y -= 20;
                     }
                     if (p.role === "MB") {
-                      if (posNum === 3) target.y -= 10;
+                      if (posNum === 3) fallbackTarget.y -= 10;
                     }
-                    // Setters (back-row) step up a bit if they're in back positions
                     if (p.role === "S") {
-                      if (posNum === 1 || posNum === 6) target.y -= 10;
+                      if (posNum === 1 || posNum === 6) fallbackTarget.y -= 10;
                     }
                   }
                 }
 
+                const finalPosition = position || fallbackTarget;
+
                 return (
-                  <motion.g
+                  <DraggablePlayer
                     key={p.id}
-                    initial={false}
-                    animate={{ cx: target.x, cy: target.y }}
-                    transition={{ type: "spring", stiffness: 280, damping: 28 }}
-                  >
-                    <circle cx={target.x} cy={target.y} r={18} fill="#1d4ed8" />
-                    <text
-                      x={target.x}
-                      y={target.y + 5}
-                      fontSize={10}
-                      textAnchor="middle"
-                      fill="#fff"
-                    >
-                      {p.id}
-                    </text>
-                  </motion.g>
+                    player={p}
+                    position={finalPosition}
+                    positionManager={positionManager}
+                    system={system}
+                    rotation={rotationIndex}
+                    formation={formation}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                  />
                 );
               })}
             </svg>

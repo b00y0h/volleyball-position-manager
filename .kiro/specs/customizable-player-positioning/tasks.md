@@ -24,7 +24,7 @@
   - Write unit tests for state management and validation logic
   - _Requirements: 1.5, 4.1, 4.2, 5.1_
 
-- [ ] 4. Implement drag-and-drop functionality for player positioning
+- [x] 4. Implement drag-and-drop functionality for player positioning
 
   - Create DragDropProvider component that wraps player dots with drag handlers
   - Implement drag start, drag move, and drag end event handlers
