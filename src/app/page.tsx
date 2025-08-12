@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
 import { usePositionManager } from "@/hooks/usePositionManager";
 import { DraggablePlayer } from "@/components";
 import { SystemType, FormationType } from "@/types";
+import { URLStateManager } from "@/utils/URLStateManager";
 
 // Volleyball Rotations Visualizer — UPDATED
 // - Corrected rotation generation to ensure: Opposite players are 3 positions away (diagonal),
@@ -119,13 +119,166 @@ export default function Home() {
   const [formation, setFormation] = useState<FormationType>("rotational");
   const [isAnimating, setIsAnimating] = useState(false);
   const [draggedPlayer, setDraggedPlayer] = useState<string | null>(null);
+  const [isReadOnly, setIsReadOnly] = useState(false);
+  const [shareURL, setShareURL] = useState<string>("");
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [urlLoadStatus, setUrlLoadStatus] = useState<{
+    loaded: boolean;
+    source: "url" | "localStorage" | "default";
+    message?: string;
+  }>({ loaded: false, source: "default" });
 
   // Initialize position manager
   const positionManager = usePositionManager();
 
+  // Check for URL parameters on initial load
+  useEffect(() => {
+    const loadFromURL = async () => {
+      try {
+        // Check if URL contains position data
+        if (URLStateManager.hasPositionData(window.location.href)) {
+          const urlData = URLStateManager.parseCurrentURL();
+
+          if (urlData) {
+            // URL data overrides localStorage data
+            setSystem(urlData.system);
+            setRotationIndex(urlData.rotation);
+
+            // Load positions into position manager
+            // This will override any localStorage data
+            for (const [rotationKey, rotationData] of Object.entries(
+              urlData.positions
+            )) {
+              const rotation = parseInt(rotationKey);
+
+              if (
+                rotationData.rotational &&
+                Object.keys(rotationData.rotational).length > 0
+              ) {
+                positionManager.setFormationPositions(
+                  urlData.system,
+                  rotation,
+                  "rotational",
+                  rotationData.rotational
+                );
+              }
+              if (
+                rotationData.serveReceive &&
+                Object.keys(rotationData.serveReceive).length > 0
+              ) {
+                positionManager.setFormationPositions(
+                  urlData.system,
+                  rotation,
+                  "serveReceive",
+                  rotationData.serveReceive
+                );
+              }
+              if (
+                rotationData.base &&
+                Object.keys(rotationData.base).length > 0
+              ) {
+                positionManager.setFormationPositions(
+                  urlData.system,
+                  rotation,
+                  "base",
+                  rotationData.base
+                );
+              }
+            }
+
+            // Set read-only mode for shared URLs (can be toggled off)
+            setIsReadOnly(true);
+            setUrlLoadStatus({
+              loaded: true,
+              source: "url",
+              message: "Loaded shared configuration from URL",
+            });
+          }
+        } else {
+          // No URL data, will use localStorage or defaults
+          setUrlLoadStatus({
+            loaded: true,
+            source: "localStorage",
+            message: "Using saved positions",
+          });
+        }
+      } catch (error) {
+        console.error("Failed to load from URL:", error);
+        setUrlLoadStatus({
+          loaded: true,
+          source: "default",
+          message: "Failed to load from URL, using defaults",
+        });
+      }
+    };
+
+    // Only run after position manager has finished loading
+    if (!positionManager.isLoading) {
+      loadFromURL();
+    }
+  }, [
+    positionManager.isLoading,
+    positionManager.setFormationPositions,
+    positionManager,
+  ]);
+
   // Helper function for delays
   const wait = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms));
+
+  // Generate shareable URL
+  const generateShareURL = useCallback(() => {
+    try {
+      const shareableURL = URLStateManager.generateShareableURL(
+        system,
+        rotationIndex,
+        positionManager.positions[system]
+      );
+      setShareURL(shareableURL);
+      setShowShareDialog(true);
+    } catch (error) {
+      console.error("Failed to generate share URL:", error);
+      positionManager.clearError();
+      // Set a temporary error state
+      setTimeout(() => {
+        alert(
+          "Failed to generate shareable URL. The configuration may be too large."
+        );
+      }, 100);
+    }
+  }, [system, rotationIndex, positionManager]);
+
+  // Copy URL to clipboard
+  const copyShareURL = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareURL);
+      alert("URL copied to clipboard!");
+    } catch (error) {
+      console.error("Failed to copy URL:", error);
+      // Fallback: select the text
+      const urlInput = document.getElementById(
+        "share-url-input"
+      ) as HTMLInputElement;
+      if (urlInput) {
+        urlInput.select();
+        urlInput.setSelectionRange(0, 99999);
+        document.execCommand("copy");
+        alert("URL copied to clipboard!");
+      }
+    }
+  }, [shareURL]);
+
+  // Make editable copy (exit read-only mode)
+  const makeEditableCopy = useCallback(() => {
+    setIsReadOnly(false);
+    // Clear URL parameters to indicate this is now a local copy
+    URLStateManager.clearURLParameters();
+    setUrlLoadStatus({
+      loaded: true,
+      source: "localStorage",
+      message: "Created editable copy - changes will be saved locally",
+    });
+  }, []);
 
   const players = system === "5-1" ? players5_1 : players6_2;
   const rotations = system === "5-1" ? rotations_5_1 : rotations_6_2;
@@ -135,24 +288,39 @@ export default function Home() {
   const SRtargets = getServeReceiveTargets(rotationMap);
 
   // Drag event handlers
-  const handleDragStart = useCallback((playerId: string) => {
-    setDraggedPlayer(playerId);
-  }, []);
+  const handleDragStart = useCallback(
+    (playerId: string) => {
+      if (!isReadOnly) {
+        setDraggedPlayer(playerId);
+      }
+    },
+    [isReadOnly]
+  );
 
-  const handleDragEnd = useCallback((playerId: string, success: boolean) => {
-    setDraggedPlayer(null);
-    if (success) {
-      // Position was successfully updated by the position manager
-      console.log(`Player ${playerId} position updated successfully`);
-    }
-  }, []);
+  const handleDragEnd = useCallback(
+    (playerId: string, success: boolean) => {
+      setDraggedPlayer(null);
+      if (success && !isReadOnly) {
+        // Position was successfully updated by the position manager
+        console.log(`Player ${playerId} position updated successfully`);
+      }
+    },
+    [isReadOnly]
+  );
 
   // Reset individual position handler
   const handleResetPosition = useCallback(
     (playerId: string) => {
-      positionManager.resetPosition(system, rotationIndex, formation, playerId);
+      if (!isReadOnly) {
+        positionManager.resetPosition(
+          system,
+          rotationIndex,
+          formation,
+          playerId
+        );
+      }
     },
-    [positionManager, system, rotationIndex, formation]
+    [positionManager, system, rotationIndex, formation, isReadOnly]
   );
 
   useEffect(() => {
@@ -199,6 +367,7 @@ export default function Home() {
             value={system}
             onChange={(e) => setSystem(e.target.value as SystemType)}
             className="px-3 py-1 border rounded"
+            disabled={isReadOnly}
           >
             <option value="5-1">5-1</option>
             <option value="6-2">6-2</option>
@@ -207,14 +376,14 @@ export default function Home() {
           <button
             onClick={prevRotation}
             className="px-3 py-1 border rounded hover:bg-gray-100"
-            disabled={isAnimating}
+            disabled={isAnimating || isReadOnly}
           >
             Prev Rotation
           </button>
           <button
             onClick={nextRotation}
             className="px-3 py-1 border rounded hover:bg-gray-100"
-            disabled={isAnimating}
+            disabled={isAnimating || isReadOnly}
           >
             Next Rotation
           </button>
@@ -225,15 +394,17 @@ export default function Home() {
             {[0, 1, 2, 3, 4, 5].map((rot) => (
               <button
                 key={rot}
-                onClick={() => !isAnimating && setRotationIndex(rot)}
+                onClick={() =>
+                  !isAnimating && !isReadOnly && setRotationIndex(rot)
+                }
                 className={`w-6 h-6 text-xs rounded-full border ${
                   rot === rotationIndex
                     ? "bg-blue-500 text-white border-blue-600"
                     : positionManager.isRotationCustomized(system, rot)
                     ? "bg-green-100 text-green-700 border-green-300"
                     : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
-                }`}
-                disabled={isAnimating}
+                } ${isReadOnly ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={isAnimating || isReadOnly}
                 title={
                   positionManager.isRotationCustomized(system, rot)
                     ? `Rotation ${rot + 1} (Custom positions)`
@@ -248,11 +419,22 @@ export default function Home() {
           <button
             onClick={animateSRtoBase}
             className={`px-3 py-1 rounded text-white ${
-              isAnimating ? "bg-gray-500" : "bg-blue-600 hover:bg-blue-700"
+              isAnimating || isReadOnly
+                ? "bg-gray-500"
+                : "bg-blue-600 hover:bg-blue-700"
             }`}
-            disabled={isAnimating}
+            disabled={isAnimating || isReadOnly}
           >
             {isAnimating ? "Animating..." : "Animate SR→Base"}
+          </button>
+
+          {/* Share button */}
+          <button
+            onClick={generateShareURL}
+            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+            disabled={isAnimating}
+          >
+            Share
           </button>
         </div>
       </div>
@@ -297,7 +479,47 @@ export default function Home() {
             </div>
           )}
 
-          {draggedPlayer && (
+          {/* URL load status */}
+          {urlLoadStatus.loaded && urlLoadStatus.message && (
+            <div
+              className={`mb-2 text-sm p-2 rounded ${
+                urlLoadStatus.source === "url"
+                  ? "text-blue-700 bg-blue-50"
+                  : urlLoadStatus.source === "localStorage"
+                  ? "text-green-700 bg-green-50"
+                  : "text-orange-700 bg-orange-50"
+              }`}
+            >
+              {urlLoadStatus.message}
+              {urlLoadStatus.source === "url" && (
+                <button
+                  onClick={() =>
+                    setUrlLoadStatus({ ...urlLoadStatus, message: undefined })
+                  }
+                  className="ml-2 underline"
+                >
+                  Dismiss
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Read-only mode indicator */}
+          {isReadOnly && (
+            <div className="mb-2 text-sm text-purple-700 bg-purple-50 p-2 rounded flex items-center justify-between">
+              <span>
+                <strong>Read-only mode:</strong> Viewing shared configuration
+              </span>
+              <button
+                onClick={makeEditableCopy}
+                className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+              >
+                Make Editable Copy
+              </button>
+            </div>
+          )}
+
+          {draggedPlayer && !isReadOnly && (
             <div className="mb-2 text-sm text-green-600">
               Dragging player: <strong>{draggedPlayer}</strong>
             </div>
@@ -310,6 +532,7 @@ export default function Home() {
                 value={formation}
                 onChange={(e) => setFormation(e.target.value as FormationType)}
                 className="px-3 py-1 border rounded pr-8"
+                disabled={isReadOnly}
               >
                 <option value="rotational">
                   Rotational Position{" "}
@@ -355,49 +578,54 @@ export default function Home() {
             </div>
 
             {/* Reset controls */}
-            <div className="flex gap-2">
-              {positionManager.isFormationCustomized(
-                system,
-                rotationIndex,
-                formation
-              ) && (
-                <button
-                  onClick={() =>
-                    positionManager.resetFormation(
-                      system,
-                      rotationIndex,
-                      formation
-                    )
-                  }
-                  className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
-                  disabled={isAnimating}
-                >
-                  Reset {formation}
-                </button>
-              )}
+            {!isReadOnly && (
+              <div className="flex gap-2">
+                {positionManager.isFormationCustomized(
+                  system,
+                  rotationIndex,
+                  formation
+                ) && (
+                  <button
+                    onClick={() =>
+                      positionManager.resetFormation(
+                        system,
+                        rotationIndex,
+                        formation
+                      )
+                    }
+                    className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
+                    disabled={isAnimating}
+                  >
+                    Reset {formation}
+                  </button>
+                )}
 
-              {positionManager.isRotationCustomized(system, rotationIndex) && (
-                <button
-                  onClick={() =>
-                    positionManager.resetRotation(system, rotationIndex)
-                  }
-                  className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                  disabled={isAnimating}
-                >
-                  Reset Rotation {rotationIndex + 1}
-                </button>
-              )}
+                {positionManager.isRotationCustomized(
+                  system,
+                  rotationIndex
+                ) && (
+                  <button
+                    onClick={() =>
+                      positionManager.resetRotation(system, rotationIndex)
+                    }
+                    className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                    disabled={isAnimating}
+                  >
+                    Reset Rotation {rotationIndex + 1}
+                  </button>
+                )}
 
-              {positionManager.isSystemCustomized(system) && (
-                <button
-                  onClick={() => positionManager.resetSystem(system)}
-                  className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                  disabled={isAnimating}
-                >
-                  Reset All {system}
-                </button>
-              )}
-            </div>
+                {positionManager.isSystemCustomized(system) && (
+                  <button
+                    onClick={() => positionManager.resetSystem(system)}
+                    className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                    disabled={isAnimating}
+                  >
+                    Reset All {system}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="w-full overflow-auto">
@@ -504,6 +732,7 @@ export default function Home() {
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
                     onResetPosition={handleResetPosition}
+                    isReadOnly={isReadOnly}
                   />
                 );
               })}
@@ -589,6 +818,48 @@ export default function Home() {
         IDs to match your roster names and roles; the rotation generator will
         follow the same rules.
       </div>
+
+      {/* Share Dialog */}
+      {showShareDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Share Configuration</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Copy this URL to share your current volleyball formation
+              configuration:
+            </p>
+            <div className="flex gap-2 mb-4">
+              <input
+                id="share-url-input"
+                type="text"
+                value={shareURL}
+                readOnly
+                className="flex-1 px-3 py-2 border rounded text-sm"
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <button
+                onClick={copyShareURL}
+                className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
+                Copy
+              </button>
+            </div>
+            <div className="text-xs text-gray-500 mb-4">
+              <strong>Note:</strong> This URL contains all your custom positions
+              for the {system} system. Recipients will be able to view your
+              formations and create their own editable copies.
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowShareDialog(false)}
+                className="px-4 py-2 text-gray-600 border rounded hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
