@@ -147,6 +147,14 @@ export default function Home() {
     }
   }, []);
 
+  // Reset individual position handler
+  const handleResetPosition = useCallback(
+    (playerId: string) => {
+      positionManager.resetPosition(system, rotationIndex, formation, playerId);
+    },
+    [positionManager, system, rotationIndex, formation]
+  );
+
   useEffect(() => {
     // When formation changes, briefly set an animating flag to disable changing rotation during transition
     setIsAnimating(true);
@@ -186,10 +194,10 @@ export default function Home() {
         <h2 className="text-2xl font-semibold">
           Volleyball Rotations Visualizer
         </h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <select
             value={system}
-            onChange={(e) => setSystem(e.target.value)}
+            onChange={(e) => setSystem(e.target.value as SystemType)}
             className="px-3 py-1 border rounded"
           >
             <option value="5-1">5-1</option>
@@ -210,6 +218,32 @@ export default function Home() {
           >
             Next Rotation
           </button>
+
+          {/* Rotation indicators */}
+          <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded">
+            <span className="text-xs text-gray-600">Rotations:</span>
+            {[0, 1, 2, 3, 4, 5].map((rot) => (
+              <button
+                key={rot}
+                onClick={() => !isAnimating && setRotationIndex(rot)}
+                className={`w-6 h-6 text-xs rounded-full border ${
+                  rot === rotationIndex
+                    ? "bg-blue-500 text-white border-blue-600"
+                    : positionManager.isRotationCustomized(system, rot)
+                    ? "bg-green-100 text-green-700 border-green-300"
+                    : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
+                }`}
+                disabled={isAnimating}
+                title={
+                  positionManager.isRotationCustomized(system, rot)
+                    ? `Rotation ${rot + 1} (Custom positions)`
+                    : `Rotation ${rot + 1}`
+                }
+              >
+                {rot + 1}
+              </button>
+            ))}
+          </div>
 
           <button
             onClick={animateSRtoBase}
@@ -269,41 +303,101 @@ export default function Home() {
             </div>
           )}
 
-          <div className="mb-3 flex items-center gap-3">
+          <div className="mb-3 flex items-center gap-3 flex-wrap">
             <label className="text-sm">Show formation:</label>
-            <select
-              value={formation}
-              onChange={(e) => setFormation(e.target.value)}
-              className="px-3 py-1 border rounded"
-            >
-              <option value="rotational">Rotational Position (default)</option>
-              <option value="serveReceive">Serve/Receive</option>
-              <option value="base">Base (Attack)</option>
-            </select>
+            <div className="relative">
+              <select
+                value={formation}
+                onChange={(e) => setFormation(e.target.value as FormationType)}
+                className="px-3 py-1 border rounded pr-8"
+              >
+                <option value="rotational">
+                  Rotational Position{" "}
+                  {positionManager.isFormationCustomized(
+                    system,
+                    rotationIndex,
+                    "rotational"
+                  )
+                    ? "●"
+                    : ""}
+                </option>
+                <option value="serveReceive">
+                  Serve/Receive{" "}
+                  {positionManager.isFormationCustomized(
+                    system,
+                    rotationIndex,
+                    "serveReceive"
+                  )
+                    ? "●"
+                    : ""}
+                </option>
+                <option value="base">
+                  Base (Attack){" "}
+                  {positionManager.isFormationCustomized(
+                    system,
+                    rotationIndex,
+                    "base"
+                  )
+                    ? "●"
+                    : ""}
+                </option>
+              </select>
+              {positionManager.isFormationCustomized(
+                system,
+                rotationIndex,
+                formation
+              ) && (
+                <div className="absolute right-2 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-green-500 rounded-full pointer-events-none"></div>
+              )}
+            </div>
             <div className="text-xs text-gray-500">
-              (Selecting an option animates players to that formation)
+              (● indicates custom positions)
             </div>
 
             {/* Reset controls */}
-            {positionManager.isFormationCustomized(
-              system,
-              rotationIndex,
-              formation
-            ) && (
-              <button
-                onClick={() =>
-                  positionManager.resetFormation(
-                    system,
-                    rotationIndex,
-                    formation
-                  )
-                }
-                className="ml-3 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
-                disabled={isAnimating}
-              >
-                Reset {formation} positions
-              </button>
-            )}
+            <div className="flex gap-2">
+              {positionManager.isFormationCustomized(
+                system,
+                rotationIndex,
+                formation
+              ) && (
+                <button
+                  onClick={() =>
+                    positionManager.resetFormation(
+                      system,
+                      rotationIndex,
+                      formation
+                    )
+                  }
+                  className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
+                  disabled={isAnimating}
+                >
+                  Reset {formation}
+                </button>
+              )}
+
+              {positionManager.isRotationCustomized(system, rotationIndex) && (
+                <button
+                  onClick={() =>
+                    positionManager.resetRotation(system, rotationIndex)
+                  }
+                  className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                  disabled={isAnimating}
+                >
+                  Reset Rotation {rotationIndex + 1}
+                </button>
+              )}
+
+              {positionManager.isSystemCustomized(system) && (
+                <button
+                  onClick={() => positionManager.resetSystem(system)}
+                  className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                  disabled={isAnimating}
+                >
+                  Reset All {system}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="w-full overflow-auto">
@@ -409,18 +503,39 @@ export default function Home() {
                     formation={formation}
                     onDragStart={handleDragStart}
                     onDragEnd={handleDragEnd}
+                    onResetPosition={handleResetPosition}
                   />
                 );
               })}
             </svg>
           </div>
 
-          <div className="mt-3 text-sm text-gray-600">
-            Tip: Use the <em>Show formation</em> dropdown to switch between
-            Rotational Position, Serve/Receive, and Base. The visualizer now
-            generates rotations programmatically so Rotation 2, 3, ... follow
-            standard clockwise rotation (e.g. Rotation 2 places the Setter at 6,
-            OH1 at 1, MB1 at 2, etc.).
+          <div className="mt-3 text-sm text-gray-600 space-y-2">
+            <div>
+              <strong>Visual Indicators:</strong>
+            </div>
+            <div className="flex flex-wrap gap-4 text-xs">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span>Default position</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-green-600 rounded-full"></div>
+                <span>Custom position</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                <span>Customization indicator</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-green-100 border border-green-300 rounded-full"></div>
+                <span>Rotation with custom positions</span>
+              </div>
+            </div>
+            <div>
+              <strong>Interactions:</strong> Drag players to customize positions
+              • Hover for tooltips • Click × to reset individual positions
+            </div>
           </div>
         </div>
 

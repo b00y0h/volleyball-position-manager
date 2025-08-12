@@ -25,6 +25,7 @@ interface DraggablePlayerProps {
   isReadOnly?: boolean;
   onDragStart?: (playerId: string) => void;
   onDragEnd?: (playerId: string, success: boolean) => void;
+  onResetPosition?: (playerId: string) => void;
 }
 
 interface DragState {
@@ -43,12 +44,15 @@ export function DraggablePlayer({
   isReadOnly = false,
   onDragStart,
   onDragEnd,
+  onResetPosition,
 }: DraggablePlayerProps) {
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
     startPosition: position,
     isValidPosition: true,
   });
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [showResetButton, setShowResetButton] = useState(false);
 
   // Check if this position is customized
   const isCustomized = useMemo(() => {
@@ -240,6 +244,14 @@ export function DraggablePlayer({
       style={{
         cursor: getCursorStyle(),
       }}
+      onMouseEnter={() => {
+        setShowTooltip(true);
+        setShowResetButton(true);
+      }}
+      onMouseLeave={() => {
+        setShowTooltip(false);
+        setShowResetButton(false);
+      }}
     >
       {/* Player circle */}
       <circle
@@ -321,6 +333,77 @@ export function DraggablePlayer({
           )}
         </>
       )}
+
+      {/* Hover tooltip */}
+      {showTooltip && !dragState.isDragging && (
+        <g style={{ pointerEvents: "none" }}>
+          {/* Tooltip background */}
+          <rect
+            x={-35}
+            y={-45}
+            width={70}
+            height={20}
+            rx={4}
+            fill="rgba(0, 0, 0, 0.8)"
+            stroke="rgba(255, 255, 255, 0.2)"
+            strokeWidth={1}
+          />
+          {/* Tooltip text */}
+          <text
+            x={0}
+            y={-32}
+            fontSize={9}
+            textAnchor="middle"
+            fill="white"
+            style={{
+              fontWeight: "500",
+            }}
+          >
+            {isCustomized ? "Custom Position" : "Default Position"}
+          </text>
+        </g>
+      )}
+
+      {/* Individual reset button */}
+      {showResetButton &&
+        !dragState.isDragging &&
+        isCustomized &&
+        !isReadOnly &&
+        onResetPosition && (
+          <g>
+            {/* Reset button background */}
+            <circle
+              cx={20}
+              cy={-20}
+              r={8}
+              fill="rgba(239, 68, 68, 0.9)"
+              stroke="rgba(220, 38, 38, 1)"
+              strokeWidth={1}
+              style={{
+                cursor: "pointer",
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onResetPosition(player.id);
+              }}
+            />
+            {/* Reset icon (×) */}
+            <text
+              x={20}
+              y={-16}
+              fontSize={10}
+              textAnchor="middle"
+              fill="white"
+              style={{
+                fontWeight: "bold",
+                cursor: "pointer",
+                pointerEvents: "none",
+              }}
+            >
+              ×
+            </text>
+          </g>
+        )}
     </motion.g>
   );
 }
