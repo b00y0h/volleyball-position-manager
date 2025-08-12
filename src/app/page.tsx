@@ -359,14 +359,14 @@ export default function Home() {
   return (
     <div className="p-4 w-full max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">
+        <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
           Volleyball Rotations Visualizer
         </h2>
         <div className="flex gap-2 flex-wrap">
           <select
             value={system}
             onChange={(e) => setSystem(e.target.value as SystemType)}
-            className="px-3 py-1 border rounded"
+            className="px-3 py-1 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
             disabled={isReadOnly}
           >
             <option value="5-1">5-1</option>
@@ -375,22 +375,24 @@ export default function Home() {
 
           <button
             onClick={prevRotation}
-            className="px-3 py-1 border rounded hover:bg-gray-100"
+            className="px-3 py-1 border rounded hover:bg-gray-100 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
             disabled={isAnimating || isReadOnly}
           >
             Prev Rotation
           </button>
           <button
             onClick={nextRotation}
-            className="px-3 py-1 border rounded hover:bg-gray-100"
+            className="px-3 py-1 border rounded hover:bg-gray-100 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
             disabled={isAnimating || isReadOnly}
           >
             Next Rotation
           </button>
 
           {/* Rotation indicators */}
-          <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 rounded">
-            <span className="text-xs text-gray-600">Rotations:</span>
+          <div className="flex items-center gap-1 px-2 py-1 bg-gray-50 dark:bg-gray-800 rounded">
+            <span className="text-xs text-gray-600 dark:text-gray-400">
+              Rotations:
+            </span>
             {[0, 1, 2, 3, 4, 5].map((rot) => (
               <button
                 key={rot}
@@ -401,8 +403,8 @@ export default function Home() {
                   rot === rotationIndex
                     ? "bg-blue-500 text-white border-blue-600"
                     : positionManager.isRotationCustomized(system, rot)
-                    ? "bg-green-100 text-green-700 border-green-300"
-                    : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
+                    ? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 border-green-300 dark:border-green-600"
+                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
                 } ${isReadOnly ? "opacity-50 cursor-not-allowed" : ""}`}
                 disabled={isAnimating || isReadOnly}
                 title={
@@ -440,8 +442,8 @@ export default function Home() {
       </div>
 
       <div className="flex gap-4">
-        <div className="bg-white p-4 rounded shadow flex-1">
-          <div className="mb-2 flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded shadow flex-1">
+          <div className="mb-2 flex items-center justify-between text-gray-900 dark:text-gray-100">
             <div>
               System: <strong>{system}</strong>
             </div>
@@ -462,17 +464,17 @@ export default function Home() {
 
           {/* Position manager status */}
           {positionManager.isLoading && (
-            <div className="mb-2 text-sm text-blue-600">
+            <div className="mb-2 text-sm text-blue-600 dark:text-blue-400">
               Loading saved positions...
             </div>
           )}
 
           {positionManager.error && (
-            <div className="mb-2 text-sm text-red-600 bg-red-50 p-2 rounded">
+            <div className="mb-2 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 p-2 rounded">
               Error: {positionManager.error}
               <button
                 onClick={positionManager.clearError}
-                className="ml-2 text-red-800 underline"
+                className="ml-2 text-red-800 dark:text-red-300 underline"
               >
                 Dismiss
               </button>
@@ -484,10 +486,10 @@ export default function Home() {
             <div
               className={`mb-2 text-sm p-2 rounded ${
                 urlLoadStatus.source === "url"
-                  ? "text-blue-700 bg-blue-50"
+                  ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20"
                   : urlLoadStatus.source === "localStorage"
-                  ? "text-green-700 bg-green-50"
-                  : "text-orange-700 bg-orange-50"
+                  ? "text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20"
+                  : "text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20"
               }`}
             >
               {urlLoadStatus.message}
@@ -506,7 +508,7 @@ export default function Home() {
 
           {/* Read-only mode indicator */}
           {isReadOnly && (
-            <div className="mb-2 text-sm text-purple-700 bg-purple-50 p-2 rounded flex items-center justify-between">
+            <div className="mb-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 p-2 rounded flex items-center justify-between">
               <span>
                 <strong>Read-only mode:</strong> Viewing shared configuration
               </span>
@@ -520,18 +522,20 @@ export default function Home() {
           )}
 
           {draggedPlayer && !isReadOnly && (
-            <div className="mb-2 text-sm text-green-600">
+            <div className="mb-2 text-sm text-green-600 dark:text-green-400">
               Dragging player: <strong>{draggedPlayer}</strong>
             </div>
           )}
 
           <div className="mb-3 flex items-center gap-3 flex-wrap">
-            <label className="text-sm">Show formation:</label>
+            <label className="text-sm text-gray-900 dark:text-gray-100">
+              Show formation:
+            </label>
             <div className="relative">
               <select
                 value={formation}
                 onChange={(e) => setFormation(e.target.value as FormationType)}
-                className="px-3 py-1 border rounded pr-8"
+                className="px-3 py-1 border rounded pr-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                 disabled={isReadOnly}
               >
                 <option value="rotational">
@@ -573,7 +577,7 @@ export default function Home() {
                 <div className="absolute right-2 top-1/2 transform -translate-y-1/2 w-2 h-2 bg-green-500 rounded-full pointer-events-none"></div>
               )}
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-gray-500 dark:text-gray-400">
               (● indicates custom positions)
             </div>
 
@@ -739,7 +743,7 @@ export default function Home() {
             </svg>
           </div>
 
-          <div className="mt-3 text-sm text-gray-600 space-y-2">
+          <div className="mt-3 text-sm text-gray-600 dark:text-gray-400 space-y-2">
             <div>
               <strong>Visual Indicators:</strong>
             </div>
@@ -757,7 +761,7 @@ export default function Home() {
                 <span>Customization indicator</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 bg-green-100 border border-green-300 rounded-full"></div>
+                <div className="w-3 h-3 bg-green-100 dark:bg-green-900 border border-green-300 dark:border-green-600 rounded-full"></div>
                 <span>Rotation with custom positions</span>
               </div>
             </div>
@@ -768,9 +772,11 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="w-72 bg-white p-4 rounded shadow">
-          <h3 className="font-semibold mb-2">Roster / Rotation Table</h3>
-          <table className="w-full text-sm">
+        <div className="w-72 bg-white dark:bg-gray-800 p-4 rounded shadow">
+          <h3 className="font-semibold mb-2 text-gray-900 dark:text-gray-100">
+            Roster / Rotation Table
+          </h3>
+          <table className="w-full text-sm text-gray-900 dark:text-gray-100">
             <thead>
               <tr>
                 <th className="text-left">Pos</th>
@@ -785,7 +791,10 @@ export default function Home() {
                   role: "",
                 };
                 return (
-                  <tr key={pos} className="border-t">
+                  <tr
+                    key={pos}
+                    className="border-t border-gray-200 dark:border-gray-700"
+                  >
                     <td className="py-1">{pos}</td>
                     <td className="py-1">{p.name}</td>
                     <td className="py-1">{p.role}</td>
@@ -796,8 +805,10 @@ export default function Home() {
           </table>
 
           <div className="mt-4">
-            <h4 className="font-medium">Controls</h4>
-            <ol className="text-sm mt-2 list-decimal ml-5 space-y-1">
+            <h4 className="font-medium text-gray-900 dark:text-gray-100">
+              Controls
+            </h4>
+            <ol className="text-sm mt-2 list-decimal ml-5 space-y-1 text-gray-700 dark:text-gray-300">
               <li>Switch system (5-1 or 6-2).</li>
               <li>
                 Next/Prev to step rotations 1→6 (rotations move clockwise).
@@ -811,7 +822,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="mt-4 text-xs text-gray-500">
+      <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
         Note: The starting rotation follows your specification: Setter in 1, OH1
         in 2, MB1 in 3. Opposite players are placed 3 positions away so they are
         diagonally opposite (e.g. Opp at 4 when Setter is at 1). Adjust player
@@ -822,9 +833,11 @@ export default function Home() {
       {/* Share Dialog */}
       {showShareDialog && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Share Configuration</h3>
-            <p className="text-sm text-gray-600 mb-3">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-gray-100">
+              Share Configuration
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
               Copy this URL to share your current volleyball formation
               configuration:
             </p>
@@ -834,7 +847,7 @@ export default function Home() {
                 type="text"
                 value={shareURL}
                 readOnly
-                className="flex-1 px-3 py-2 border rounded text-sm"
+                className="flex-1 px-3 py-2 border rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
                 onClick={(e) => (e.target as HTMLInputElement).select()}
               />
               <button
@@ -844,7 +857,7 @@ export default function Home() {
                 Copy
               </button>
             </div>
-            <div className="text-xs text-gray-500 mb-4">
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-4">
               <strong>Note:</strong> This URL contains all your custom positions
               for the {system} system. Recipients will be able to view your
               formations and create their own editable copies.
@@ -852,7 +865,7 @@ export default function Home() {
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setShowShareDialog(false)}
-                className="px-4 py-2 text-gray-600 border rounded hover:bg-gray-50"
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-800"
               >
                 Close
               </button>
