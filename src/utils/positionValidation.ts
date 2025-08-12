@@ -87,9 +87,9 @@ export function validateFormationPosition(
  * Validates rotational position constraints
  */
 function validateRotationalPosition(
-  position: { x: number; y: number },
-  playerId: string,
-  rotationIndex: number
+  _position: { x: number; y: number },
+  _playerId: string,
+  _rotationIndex: number
 ): { isValid: boolean; reason?: string } {
   // Basic validation - players should maintain relative positioning
   // This is a simplified version - more complex rules can be added
@@ -100,9 +100,9 @@ function validateRotationalPosition(
  * Validates serve/receive position constraints
  */
 function validateServeReceivePosition(
-  position: { x: number; y: number },
-  playerId: string,
-  rotationIndex: number
+  _position: { x: number; y: number },
+  _playerId: string,
+  _rotationIndex: number
 ): { isValid: boolean; reason?: string } {
   // Back-row players should generally be in back court for serve receive
   // This is a simplified validation - more specific rules can be added
@@ -113,9 +113,9 @@ function validateServeReceivePosition(
  * Validates base formation position constraints
  */
 function validateBasePosition(
-  position: { x: number; y: number },
-  playerId: string,
-  rotationIndex: number
+  _position: { x: number; y: number },
+  _playerId: string,
+  _rotationIndex: number
 ): { isValid: boolean; reason?: string } {
   // Front-row players should be positioned for attack
   // This is a simplified validation - more specific rules can be added

@@ -73,8 +73,8 @@ export function getDefaultRotationalPositions(
  * Gets default serve/receive positions based on rotation and system
  */
 export function getDefaultServeReceivePositions(
-  rotationIndex: number,
-  system: SystemType
+  _rotationIndex: number,
+  _system: SystemType
 ): Record<string, PlayerPosition> {
   const positions: Record<string, PlayerPosition> = {};
 
@@ -113,8 +113,8 @@ export function getDefaultServeReceivePositions(
  * Gets default base attack positions with role-specific adjustments
  */
 export function getDefaultBasePositions(
-  rotationIndex: number,
-  system: SystemType
+  _rotationIndex: number,
+  _system: SystemType
 ): Record<string, PlayerPosition> {
   const positions: Record<string, PlayerPosition> = {};
 
@@ -150,18 +150,18 @@ export function getDefaultBasePositions(
  */
 export function getDefaultPositions(
   formationType: FormationType,
-  rotationIndex: number,
-  system: SystemType
+  _rotationIndex: number,
+  _system: SystemType
 ): Record<string, PlayerPosition> {
   switch (formationType) {
     case "rotational":
-      return getDefaultRotationalPositions(rotationIndex);
+      return getDefaultRotationalPositions(_rotationIndex);
     case "serveReceive":
-      return getDefaultServeReceivePositions(rotationIndex, system);
+      return getDefaultServeReceivePositions(_rotationIndex, _system);
     case "base":
-      return getDefaultBasePositions(rotationIndex, system);
+      return getDefaultBasePositions(_rotationIndex, _system);
     default:
-      return getDefaultRotationalPositions(rotationIndex);
+      return getDefaultRotationalPositions(_rotationIndex);
   }
 }
 

@@ -467,7 +467,6 @@ export function usePositionManager(): PositionManager {
       rotation: number,
       formation: FormationType
     ): boolean => {
-      const positions = getFormationPositions(system, rotation, formation);
       const defaultPositions = getDefaultPositions(formation, rotation, system);
 
       for (const playerId of Object.keys(defaultPositions)) {
@@ -478,7 +477,7 @@ export function usePositionManager(): PositionManager {
 
       return false;
     },
-    [getFormationPositions, isPositionCustomized]
+    [isPositionCustomized]
   );
 
   // Check if a rotation has any customized positions
@@ -523,12 +522,7 @@ export function usePositionManager(): PositionManager {
       formation: FormationType,
       playerId: string
     ): void => {
-      const defaultPosition = resetToDefault(
-        formation,
-        rotation,
-        system,
-        playerId
-      );
+      resetToDefault(formation, rotation, system, playerId);
 
       setState((prev) => {
         const newState = { ...prev };

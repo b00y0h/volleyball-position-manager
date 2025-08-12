@@ -201,7 +201,7 @@ export function DraggablePlayer({
 
   // Get cursor style based on drag state
   const getCursorStyle = useCallback(() => {
-    if (isReadOnly) return "default";
+    if (isReadOnly) return "not-allowed";
     if (dragState.isDragging) {
       return dragState.isValidPosition ? "grabbing" : "not-allowed";
     }
@@ -263,8 +263,25 @@ export function DraggablePlayer({
           filter: isCustomized
             ? "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
             : "none",
+          opacity: isReadOnly ? 0.7 : 1,
         }}
       />
+
+      {/* Read-only overlay */}
+      {isReadOnly && (
+        <circle
+          cx={0}
+          cy={0}
+          r={18}
+          fill="none"
+          stroke="#9333ea"
+          strokeWidth={2}
+          strokeDasharray="3 3"
+          style={{
+            pointerEvents: "none",
+          }}
+        />
+      )}
 
       {/* Player ID text */}
       <text
@@ -339,10 +356,10 @@ export function DraggablePlayer({
         <g style={{ pointerEvents: "none" }}>
           {/* Tooltip background */}
           <rect
-            x={-35}
+            x={-45}
             y={-45}
-            width={70}
-            height={20}
+            width={90}
+            height={isReadOnly ? 30 : 20}
             rx={4}
             fill="rgba(0, 0, 0, 0.8)"
             stroke="rgba(255, 255, 255, 0.2)"
@@ -351,7 +368,7 @@ export function DraggablePlayer({
           {/* Tooltip text */}
           <text
             x={0}
-            y={-32}
+            y={isReadOnly ? -38 : -32}
             fontSize={9}
             textAnchor="middle"
             fill="white"
@@ -361,6 +378,20 @@ export function DraggablePlayer({
           >
             {isCustomized ? "Custom Position" : "Default Position"}
           </text>
+          {isReadOnly && (
+            <text
+              x={0}
+              y={-26}
+              fontSize={8}
+              textAnchor="middle"
+              fill="#fbbf24"
+              style={{
+                fontWeight: "500",
+              }}
+            >
+              (Read-only)
+            </text>
+          )}
         </g>
       )}
 

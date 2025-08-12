@@ -273,12 +273,25 @@ export default function Home() {
     setIsReadOnly(false);
     // Clear URL parameters to indicate this is now a local copy
     URLStateManager.clearURLParameters();
+
+    // Save current positions to localStorage immediately
+    positionManager.saveImmediate();
+
     setUrlLoadStatus({
       loaded: true,
       source: "localStorage",
-      message: "Created editable copy - changes will be saved locally",
+      message:
+        "Created editable copy - changes will be saved locally and won't affect the original shared configuration",
     });
-  }, []);
+
+    // Show temporary success message
+    setTimeout(() => {
+      setUrlLoadStatus((prev) => ({
+        ...prev,
+        message: "Local editable copy created successfully",
+      }));
+    }, 3000);
+  }, [positionManager]);
 
   const players = system === "5-1" ? players5_1 : players6_2;
   const rotations = system === "5-1" ? rotations_5_1 : rotations_6_2;
@@ -359,15 +372,32 @@ export default function Home() {
   return (
     <div className="p-4 w-full max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
-          Volleyball Rotations Visualizer
-        </h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            Volleyball Rotations Visualizer
+          </h2>
+          {isReadOnly && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full text-xs font-medium">
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Read-Only
+            </div>
+          )}
+        </div>
         <div className="flex gap-2 flex-wrap">
           <select
             value={system}
             onChange={(e) => setSystem(e.target.value as SystemType)}
-            className="px-3 py-1 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+            className={`px-3 py-1 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 ${
+              isReadOnly ? "opacity-50 cursor-not-allowed" : ""
+            }`}
             disabled={isReadOnly}
+            title={isReadOnly ? "Disabled in read-only mode" : ""}
           >
             <option value="5-1">5-1</option>
             <option value="6-2">6-2</option>
@@ -375,15 +405,25 @@ export default function Home() {
 
           <button
             onClick={prevRotation}
-            className="px-3 py-1 border rounded hover:bg-gray-100 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+            className={`px-3 py-1 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 ${
+              isAnimating || isReadOnly
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
             disabled={isAnimating || isReadOnly}
+            title={isReadOnly ? "Disabled in read-only mode" : ""}
           >
             Prev Rotation
           </button>
           <button
             onClick={nextRotation}
-            className="px-3 py-1 border rounded hover:bg-gray-100 dark:hover:bg-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+            className={`px-3 py-1 border rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 ${
+              isAnimating || isReadOnly
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-gray-100 dark:hover:bg-gray-700"
+            }`}
             disabled={isAnimating || isReadOnly}
+            title={isReadOnly ? "Disabled in read-only mode" : ""}
           >
             Next Rotation
           </button>
@@ -422,10 +462,11 @@ export default function Home() {
             onClick={animateSRtoBase}
             className={`px-3 py-1 rounded text-white ${
               isAnimating || isReadOnly
-                ? "bg-gray-500"
+                ? "bg-gray-500 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700"
             }`}
             disabled={isAnimating || isReadOnly}
+            title={isReadOnly ? "Disabled in read-only mode" : ""}
           >
             {isAnimating ? "Animating..." : "Animate SR→Base"}
           </button>
@@ -484,21 +525,60 @@ export default function Home() {
           {/* URL load status */}
           {urlLoadStatus.loaded && urlLoadStatus.message && (
             <div
-              className={`mb-2 text-sm p-2 rounded ${
+              className={`mb-2 text-sm p-2 rounded border ${
                 urlLoadStatus.source === "url"
-                  ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20"
+                  ? "text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700"
                   : urlLoadStatus.source === "localStorage"
-                  ? "text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20"
-                  : "text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20"
+                  ? "text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700"
+                  : "text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-700"
               }`}
             >
-              {urlLoadStatus.message}
+              <div className="flex items-center gap-2">
+                {urlLoadStatus.source === "url" && (
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+                {urlLoadStatus.source === "localStorage" && (
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 01-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15.586 13H14a1 1 0 01-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
+                <span>
+                  {urlLoadStatus.source === "url" && (
+                    <strong>Shared Configuration:</strong>
+                  )}
+                  {urlLoadStatus.source === "localStorage" && (
+                    <strong>Local Configuration:</strong>
+                  )}
+                  {urlLoadStatus.source === "default" && (
+                    <strong>Default Configuration:</strong>
+                  )}
+                  {" " + urlLoadStatus.message}
+                </span>
+              </div>
               {urlLoadStatus.source === "url" && (
                 <button
                   onClick={() =>
                     setUrlLoadStatus({ ...urlLoadStatus, message: undefined })
                   }
-                  className="ml-2 underline"
+                  className="ml-2 underline text-xs hover:no-underline"
                 >
                   Dismiss
                 </button>
@@ -508,16 +588,34 @@ export default function Home() {
 
           {/* Read-only mode indicator */}
           {isReadOnly && (
-            <div className="mb-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 p-2 rounded flex items-center justify-between">
-              <span>
-                <strong>Read-only mode:</strong> Viewing shared configuration
-              </span>
-              <button
-                onClick={makeEditableCopy}
-                className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
-              >
-                Make Editable Copy
-              </button>
+            <div className="mb-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 p-3 rounded border border-purple-200 dark:border-purple-700">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <svg
+                    className="w-4 h-4"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <strong>Read-Only Mode</strong>
+                </div>
+                <button
+                  onClick={makeEditableCopy}
+                  className="px-3 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
+                >
+                  Make Editable Copy
+                </button>
+              </div>
+              <div className="text-xs text-purple-600 dark:text-purple-400">
+                You&apos;re viewing a shared configuration. Drag-and-drop is
+                disabled. Click &quot;Make Editable Copy&quot; to create a local
+                version you can modify.
+              </div>
             </div>
           )}
 
@@ -535,8 +633,11 @@ export default function Home() {
               <select
                 value={formation}
                 onChange={(e) => setFormation(e.target.value as FormationType)}
-                className="px-3 py-1 border rounded pr-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600"
+                className={`px-3 py-1 border rounded pr-8 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 ${
+                  isReadOnly ? "opacity-50 cursor-not-allowed" : ""
+                }`}
                 disabled={isReadOnly}
+                title={isReadOnly ? "Disabled in read-only mode" : ""}
               >
                 <option value="rotational">
                   Rotational Position{" "}
@@ -632,14 +733,35 @@ export default function Home() {
             )}
           </div>
 
-          <div className="w-full overflow-auto">
+          <div className="w-full overflow-auto relative">
+            {isReadOnly && (
+              <div className="absolute top-2 right-2 z-10 bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+                <svg
+                  className="w-3 h-3"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                Shared View
+              </div>
+            )}
             <svg
               viewBox={`0 0 ${courtWidth} ${courtHeight}`}
               width="100%"
               height="auto"
               style={{
-                cursor: draggedPlayer ? "grabbing" : "default",
+                cursor: draggedPlayer
+                  ? "grabbing"
+                  : isReadOnly
+                  ? "not-allowed"
+                  : "default",
                 userSelect: "none",
+                opacity: isReadOnly ? 0.9 : 1,
               }}
             >
               <rect
@@ -766,8 +888,10 @@ export default function Home() {
               </div>
             </div>
             <div>
-              <strong>Interactions:</strong> Drag players to customize positions
-              • Hover for tooltips • Click × to reset individual positions
+              <strong>Interactions:</strong>
+              {isReadOnly
+                ? "Read-only mode - drag-and-drop disabled • Hover for tooltips • Click &apos;Make Editable Copy&apos; to modify"
+                : "Drag players to customize positions • Hover for tooltips • Click × to reset individual positions"}
             </div>
           </div>
         </div>

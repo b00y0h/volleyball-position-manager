@@ -4,10 +4,10 @@
 
 import {
   URLPositionData,
-  URLParams,
   CustomPositionsState,
   SystemType,
   PlayerPosition,
+  FormationPositions,
 } from "@/types";
 
 // Current version for backward compatibility
@@ -167,7 +167,7 @@ export class URLStateManager {
 
       // Make URL-safe
       return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-    } catch (error) {
+    } catch {
       throw new Error("Failed to compress data");
     }
   }
@@ -187,7 +187,7 @@ export class URLStateManager {
 
       // Decode from base64
       return atob(base64);
-    } catch (error) {
+    } catch {
       throw new Error("Failed to decompress data");
     }
   }
@@ -205,18 +205,20 @@ export class URLStateManager {
     const compactPositions: CustomPositionsState = {};
 
     for (const [rotKey, rotData] of Object.entries(positions)) {
-      const compactRotData: any = {};
+      const compactRotData: Partial<FormationPositions> = {};
       let hasData = false;
 
       for (const [formationType, formationData] of Object.entries(rotData)) {
         if (formationData && Object.keys(formationData).length > 0) {
-          compactRotData[formationType] = formationData;
+          (compactRotData as Record<string, unknown>)[formationType] =
+            formationData;
           hasData = true;
         }
       }
 
       if (hasData) {
-        compactPositions[parseInt(rotKey)] = compactRotData;
+        compactPositions[parseInt(rotKey)] =
+          compactRotData as FormationPositions;
       }
     }
 
@@ -284,38 +286,43 @@ export class URLStateManager {
   /**
    * Validate URL data structure
    */
-  private static validateURLData(data: any): data is URLPositionData {
+  private static validateURLData(data: unknown): data is URLPositionData {
     if (!data || typeof data !== "object") return false;
 
-    if (!data.system || !["5-1", "6-2"].includes(data.system)) return false;
+    const dataObj = data as Record<string, unknown>;
+    if (!dataObj.system || !["5-1", "6-2"].includes(dataObj.system as string))
+      return false;
     if (
-      typeof data.rotation !== "number" ||
-      data.rotation < 0 ||
-      data.rotation > 5
+      typeof dataObj.rotation !== "number" ||
+      dataObj.rotation < 0 ||
+      dataObj.rotation > 5
     )
       return false;
-    if (!data.positions || typeof data.positions !== "object") return false;
-    if (!data.version || typeof data.version !== "string") return false;
+    if (!dataObj.positions || typeof dataObj.positions !== "object")
+      return false;
+    if (!dataObj.version || typeof dataObj.version !== "string") return false;
 
     // Validate positions structure
-    for (const [rotationKey, rotationData] of Object.entries(data.positions)) {
+    for (const [rotationKey, rotationData] of Object.entries(
+      dataObj.positions as Record<string, unknown>
+    )) {
       if (isNaN(Number(rotationKey))) return false;
 
       if (!rotationData || typeof rotationData !== "object") return false;
 
       const formations = ["rotational", "serveReceive", "base"];
       for (const formation of formations) {
-        if (
-          rotationData[formation] &&
-          typeof rotationData[formation] !== "object"
-        ) {
+        const formationData = (rotationData as Record<string, unknown>)[
+          formation
+        ];
+        if (formationData && typeof formationData !== "object") {
           return false;
         }
 
         // Validate individual positions if they exist
-        if (rotationData[formation]) {
-          for (const [playerId, position] of Object.entries(
-            rotationData[formation]
+        if (formationData) {
+          for (const [, position] of Object.entries(
+            formationData as Record<string, unknown>
           )) {
             if (!this.validatePlayerPosition(position)) return false;
           }
@@ -330,16 +337,17 @@ export class URLStateManager {
    * Validate individual player position
    */
   private static validatePlayerPosition(
-    position: any
+    position: unknown
   ): position is PlayerPosition {
     if (!position || typeof position !== "object") return false;
 
-    if (typeof position.x !== "number" || typeof position.y !== "number")
+    const posObj = position as Record<string, unknown>;
+    if (typeof posObj.x !== "number" || typeof posObj.y !== "number")
       return false;
-    if (typeof position.isCustom !== "boolean") return false;
+    if (typeof posObj.isCustom !== "boolean") return false;
     if (
-      !(position.lastModified instanceof Date) &&
-      typeof position.lastModified !== "string"
+      !(posObj.lastModified instanceof Date) &&
+      typeof posObj.lastModified !== "string"
     )
       return false;
 
@@ -349,7 +357,7 @@ export class URLStateManager {
   /**
    * JSON replacer function to handle Date objects
    */
-  private static dateReplacer(key: string, value: any): any {
+  private static dateReplacer(key: string, value: unknown): unknown {
     if (value instanceof Date) {
       return { __date: value.toISOString() };
     }
@@ -359,9 +367,13 @@ export class URLStateManager {
   /**
    * JSON reviver function to restore Date objects
    */
-  private static dateReviver(key: string, value: any): any {
-    if (value && typeof value === "object" && value.__date) {
-      return new Date(value.__date);
+  private static dateReviver(key: string, value: unknown): unknown {
+    if (
+      value &&
+      typeof value === "object" &&
+      (value as Record<string, unknown>).__date
+    ) {
+      return new Date((value as Record<string, unknown>).__date as string);
     }
     // Also handle direct ISO date strings for backward compatibility
     if (key === "lastModified" && typeof value === "string") {

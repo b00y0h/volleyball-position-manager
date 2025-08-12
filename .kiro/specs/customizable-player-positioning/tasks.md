@@ -58,7 +58,7 @@
   - Create share button/functionality to generate and display shareable URLs
   - _Requirements: 3.2, 3.3, 3.4_
 
-- [ ] 8. Implement read-only mode for shared configurations
+- [x] 8. Implement read-only mode for shared configurations
 
   - Add read-only state management to disable drag-and-drop when viewing shared URLs
   - Create visual indicators showing when in read-only mode
@@ -97,6 +97,7 @@
   - Implement position calculation memoization for better performance
   - Add smooth animations for position resets and transitions
   - Optimize URL compression for better shareability
+  - Make page.tsx not have to use 'use client'. pull interactive elements out into their own components.
   - Add keyboard accessibility for drag-and-drop operations
   - Create user documentation and help tooltips for new features
   - _Requirements: 1.2, 5.2, 6.2_
