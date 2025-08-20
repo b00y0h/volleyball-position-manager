@@ -226,10 +226,13 @@ export interface PlayerLayerProps {
   visualGuidelines: ConstraintBoundaries;
   readOnly: boolean;
   courtDimensions: CourtDimensions;
+  system?: SystemType;
+  rotation?: number;
   onDragStart: (playerId: string) => void;
   onDragEnd: (playerId: string, success: boolean) => void;
   onPositionChange: (playerId: string, position: PlayerPosition) => void;
   onResetPosition?: (playerId: string) => void;
+  onVolleyballRuleViolation?: (playerId: string, violations: string[]) => void;
 }
 
 export interface ControlsLayerProps {
