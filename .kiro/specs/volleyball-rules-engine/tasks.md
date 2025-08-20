@@ -45,7 +45,7 @@
   - Write unit tests for all violation types and message generation
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 6. Build real-time constraint calculation system
+- [x] 6. Build real-time constraint calculation system
 
   - Implement ConstraintCalculator class with calculateValidBounds function
   - Create constraint logic for left/right neighbor positioning with tolerance
@@ -55,7 +55,7 @@
   - Add snapToValidPosition function for invalid position correction
   - _Requirements: 1.6, 1.7, 7.5, 7.6, 7.7, 9.1, 9.2, 9.3_
 
-- [ ] 7. Implement dynamic constraint boundary enforcement
+- [-] 7. Implement dynamic constraint boundary enforcement
 
   - Create constraint boundary calculation that updates when other players move
   - Add logic to handle multiple overlapping constraints (most restrictive wins)

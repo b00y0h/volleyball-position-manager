@@ -69,3 +69,6 @@ export { NeighborCalculator } from "./utils/NeighborCalculator";
 
 // Export validation engine
 export { OverlapValidator } from "./validation/OverlapValidator";
+
+// Export constraint calculator
+export { ConstraintCalculator } from "./validation/ConstraintCalculator";
