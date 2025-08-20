@@ -56,3 +56,10 @@ export {
   getAllRotationSlots,
   hasAllRotationSlots,
 } from "./utils/ValidationUtils";
+
+// Export coordinate transformation utilities
+export type { Point } from "./utils/CoordinateTransformer";
+export { CoordinateTransformer } from "./utils/CoordinateTransformer";
+
+// Export tolerance utilities
+export { ToleranceUtils } from "./utils/ToleranceUtils";
