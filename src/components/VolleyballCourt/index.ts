@@ -7,6 +7,10 @@
 
 export { VolleyballCourt } from "./VolleyballCourt";
 export { CourtVisualization } from "./CourtVisualization";
+export {
+  VolleyballCourtProvider,
+  useVolleyballCourt,
+} from "./VolleyballCourtProvider";
 export * from "./courtCoordinates";
 export type {
   VolleyballCourtProps,
