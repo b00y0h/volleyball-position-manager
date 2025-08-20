@@ -22,3 +22,6 @@ export {
   hasAllRotationSlots,
   type ValidationError,
 } from "./ValidationUtils";
+
+// Neighbor relationship calculator
+export { NeighborCalculator } from "./NeighborCalculator";

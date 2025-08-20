@@ -63,3 +63,6 @@ export { CoordinateTransformer } from "./utils/CoordinateTransformer";
 
 // Export tolerance utilities
 export { ToleranceUtils } from "./utils/ToleranceUtils";
+
+// Export neighbor relationship calculator
+export { NeighborCalculator } from "./utils/NeighborCalculator";
