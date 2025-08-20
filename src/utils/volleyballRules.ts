@@ -53,45 +53,49 @@ export class VolleyballRulesValidator {
   }
 
   /**
-   * Get zone constraints for each position (1-6) during service
+   * Get zone constraints for each position (1-6) during serve/receive
+   * Based on volleyball overlap rules:
+   * - Front row players (2,3,4) cannot cross each other horizontally
+   * - Back row players (1,5,6) cannot cross each other horizontally  
+   * - Players cannot go behind directly adjacent players (not diagonal)
    */
   getZoneConstraints(): Record<number, OverlapConstraint> {
     return {
       1: {
-        playerId: "1",
-        cannotOverlapWith: ["2", "6"],
-        horizontalConstraints: { leftOf: "2" },
-        verticalConstraints: { behind: "2" },
+        playerId: "1", 
+        cannotOverlapWith: ["6", "5"],
+        horizontalConstraints: { rightOf: "6", leftOf: "5" }, // Zone 1 between zones 6 and 5 (back row)
+        verticalConstraints: { behind: "2" }, // Zone 1 must be behind zone 2 (directly above)
       },
       2: {
-        playerId: "2",
-        cannotOverlapWith: ["1", "3"],
-        horizontalConstraints: { rightOf: "1", leftOf: "3" },
-        verticalConstraints: { inFrontOf: "1" },
+        playerId: "2", 
+        cannotOverlapWith: ["3"],
+        horizontalConstraints: { leftOf: "3" }, // Zone 2 must be to the left of zone 3
+        verticalConstraints: { inFrontOf: "1" }, // Zone 2 must be in front of zone 1 (directly below)
       },
       3: {
         playerId: "3",
-        cannotOverlapWith: ["2", "4", "6"],
-        horizontalConstraints: { rightOf: "2", leftOf: "4" },
-        verticalConstraints: { inFrontOf: "6" },
+        cannotOverlapWith: ["2", "4"],
+        horizontalConstraints: { rightOf: "2", leftOf: "4" }, // Zone 3 between zones 2 and 4
+        verticalConstraints: { inFrontOf: "6" }, // Zone 3 must be in front of zone 6 (directly below)
       },
       4: {
         playerId: "4",
-        cannotOverlapWith: ["3", "5"],
-        horizontalConstraints: { rightOf: "3" },
-        verticalConstraints: { inFrontOf: "5" },
+        cannotOverlapWith: ["3"],
+        horizontalConstraints: { rightOf: "3" }, // Zone 4 must be to the right of zone 3
+        verticalConstraints: { inFrontOf: "5" }, // Zone 4 must be in front of zone 5 (directly below)
       },
       5: {
         playerId: "5",
-        cannotOverlapWith: ["4", "6"],
-        horizontalConstraints: { rightOf: "6" },
-        verticalConstraints: { behind: "4" },
+        cannotOverlapWith: ["1"],
+        horizontalConstraints: { rightOf: "1" }, // Zone 5 must be to the right of zone 1 (back row)
+        verticalConstraints: { behind: "4" }, // Zone 5 must be behind zone 4 (directly above)
       },
       6: {
         playerId: "6",
-        cannotOverlapWith: ["5", "1", "3"],
-        horizontalConstraints: { leftOf: "5", rightOf: "1" },
-        verticalConstraints: { behind: "3", inFrontOf: "1" },
+        cannotOverlapWith: ["1"],
+        horizontalConstraints: { leftOf: "1" }, // Zone 6 must be to the left of zone 1 (back row constraint)
+        verticalConstraints: { behind: "3" }, // Zone 6 must be behind zone 3 (directly above)
       },
     };
   }
@@ -157,8 +161,8 @@ export class VolleyballRulesValidator {
     const violations: string[] = [];
     const overlapViolations: { violatedWith: string; type: 'horizontal' | 'vertical' }[] = [];
     
-    // If no rotation map provided, or not in rotational formation, skip validation
-    if (!rotationMap || formation !== "rotational") {
+    // If no rotation map provided, or not in serve/receive formation, skip overlap validation
+    if (!rotationMap || formation !== "serveReceive") {
       return { isValid: true, violations, overlapViolations };
     }
 
@@ -177,8 +181,9 @@ export class VolleyballRulesValidator {
       return { isValid: false, violations, overlapViolations };
     }
 
-    // Only validate overlap rules for rotational formation (serve receive position)
-    if (formation === "rotational") {
+    // Only validate overlap rules for serve/receive formation
+    // Base/attack formation has no overlap rules per user requirements
+    if (formation === "serveReceive") {
       this.validateZoneOverlapRules(position, playerZone, allPositions, rotationMap, constraints, violations, overlapViolations);
     }
 
@@ -332,7 +337,7 @@ export class VolleyballRulesValidator {
     const verticalLines: { x: number; label: string; playerId: string }[] = [];
     let constraintZones: { minX?: number; maxX?: number; minY?: number; maxY?: number } = {};
 
-    if (formation !== "rotational" || !rotationMap) {
+    if (formation !== "serveReceive" || !rotationMap) {
       return { horizontalLines, verticalLines, constraintZones };
     }
 

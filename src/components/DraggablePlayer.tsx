@@ -113,9 +113,14 @@ export function DraggablePlayer({
     [courtDimensions.courtWidth, courtDimensions.courtHeight]
   );
 
+  // Check if dragging is disabled for this formation
+  const isDragDisabled = useMemo(() => {
+    return isReadOnly || formation === "rotational";
+  }, [isReadOnly, formation]);
+
   // Handle drag start
   const handleDragStart = useCallback(() => {
-    if (isReadOnly) return;
+    if (isDragDisabled) return;
 
     setDragState({
       isDragging: true,
@@ -125,12 +130,12 @@ export function DraggablePlayer({
     });
 
     onDragStart?.(player.id);
-  }, [isReadOnly, position, player.id, onDragStart]);
+  }, [isDragDisabled, position, player.id, onDragStart]);
 
   // Handle drag movement
   const handleDrag = useCallback(
     (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-      if (isReadOnly || !dragState.isDragging) return;
+      if (isDragDisabled || !dragState.isDragging) return;
 
       // Calculate new position based on drag offset
       const newPosition = {
@@ -178,7 +183,7 @@ export function DraggablePlayer({
       }
     },
     [
-      isReadOnly,
+      isDragDisabled,
       dragState.isDragging,
       dragState.startPosition,
       isWithinBounds,
@@ -188,6 +193,7 @@ export function DraggablePlayer({
       formation,
       player.id,
       volleyballValidator,
+      rotationMap,
       onVolleyballRuleViolation,
     ]
   );
@@ -195,7 +201,7 @@ export function DraggablePlayer({
   // Handle drag end
   const handleDragEnd = useCallback(
     (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-      if (isReadOnly || !dragState.isDragging) return;
+      if (isDragDisabled || !dragState.isDragging) return;
 
       const finalPosition = {
         x: dragState.startPosition.x + info.offset.x,
@@ -226,7 +232,7 @@ export function DraggablePlayer({
       onDragEnd?.(player.id, success);
     },
     [
-      isReadOnly,
+      isDragDisabled,
       dragState.isDragging,
       dragState.startPosition,
       dragState.isValidPosition,
@@ -243,12 +249,12 @@ export function DraggablePlayer({
 
   // Get cursor style based on drag state
   const getCursorStyle = useCallback(() => {
-    if (isReadOnly) return "not-allowed";
+    if (isDragDisabled) return "not-allowed";
     if (dragState.isDragging) {
       return dragState.isValidPosition ? "grabbing" : "not-allowed";
     }
     return "grab";
-  }, [isReadOnly, dragState.isDragging, dragState.isValidPosition]);
+  }, [isDragDisabled, dragState.isDragging, dragState.isValidPosition]);
 
   return (
     <motion.g
@@ -269,14 +275,14 @@ export function DraggablePlayer({
         damping: 28,
         duration: 0.3,
       }}
-      drag={!isReadOnly}
+      drag={!isDragDisabled}
       dragMomentum={false}
       dragElastic={0}
       onDragStart={handleDragStart}
       onDrag={handleDrag}
       onDragEnd={handleDragEnd}
       whileHover={
-        !isReadOnly && !dragState.isDragging
+        !isDragDisabled && !dragState.isDragging
           ? {
               scale: 1.05,
               transition: { duration: 0.2 },
@@ -295,8 +301,8 @@ export function DraggablePlayer({
         setShowResetButton(false);
       }}
       role="button"
-      tabIndex={isReadOnly ? -1 : 0}
-      aria-label={`Player ${player.id} in ${player.role} position. Zone ${player.id}. ${isCustomized ? 'Custom position' : 'Default position'}. ${isReadOnly ? 'Read-only mode' : 'Drag to reposition'}`}
+      tabIndex={isDragDisabled ? -1 : 0}
+      aria-label={`Player ${player.id} in ${player.role} position. Zone ${player.id}. ${isCustomized ? 'Custom position' : 'Default position'}. ${isDragDisabled ? (formation === 'rotational' ? 'Rotational positions cannot be moved' : 'Read-only mode') : 'Drag to reposition'}`}
       aria-describedby={`player-${player.id}-status`}
       aria-live="polite"
     >
@@ -310,12 +316,12 @@ export function DraggablePlayer({
           filter: isCustomized
             ? "drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
             : "drop-shadow(0 1px 2px rgba(0,0,0,0.2))",
-          opacity: isReadOnly ? 0.7 : 1,
+          opacity: isDragDisabled ? 0.7 : 1,
         }}
       />
 
-      {/* Read-only overlay */}
-      {isReadOnly && (
+      {/* Disabled overlay */}
+      {isDragDisabled && (
         <circle
           cx={0}
           cy={0}
@@ -374,7 +380,7 @@ export function DraggablePlayer({
         }}
       >
         {isCustomized ? 'Custom position' : 'Default position'}
-        {isReadOnly ? ', Read-only mode' : ', Interactive'}
+        {isDragDisabled ? (formation === 'rotational' ? ', Rotational positions cannot be moved' : ', Read-only mode') : ', Interactive'}
         {dragState.isDragging ? (dragState.isValidPosition ? ', Valid position' : ', Invalid position') : ''}
       </text>
 
@@ -464,7 +470,7 @@ export function DraggablePlayer({
             x={-45}
             y={-45}
             width={90}
-            height={isReadOnly ? 30 : 20}
+            height={isDragDisabled ? 30 : 20}
             rx={4}
             fill="rgba(0, 0, 0, 0.8)"
             stroke="rgba(255, 255, 255, 0.2)"
@@ -473,7 +479,7 @@ export function DraggablePlayer({
           {/* Tooltip text */}
           <text
             x={0}
-            y={isReadOnly ? -38 : -32}
+            y={isDragDisabled ? -38 : -32}
             fontSize={9}
             textAnchor="middle"
             fill="white"
@@ -483,7 +489,7 @@ export function DraggablePlayer({
           >
             {isCustomized ? "Custom Position" : "Default Position"}
           </text>
-          {isReadOnly && (
+          {isDragDisabled && (
             <text
               x={0}
               y={-26}
@@ -494,7 +500,7 @@ export function DraggablePlayer({
                 fontWeight: "500",
               }}
             >
-              (Read-only)
+              {formation === 'rotational' ? '(Read-only)' : '(Read-only)'}
             </text>
           )}
         </g>
@@ -504,7 +510,7 @@ export function DraggablePlayer({
       {showResetButton &&
         !dragState.isDragging &&
         isCustomized &&
-        !isReadOnly &&
+        !isDragDisabled &&
         onResetPosition && (
           <g>
             {/* Reset button background */}
