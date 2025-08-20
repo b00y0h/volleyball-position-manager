@@ -8,12 +8,20 @@ import {
 /**
  * Validates if a position is within court boundaries
  */
-export function isWithinCourtBounds(x: number, y: number): boolean {
+export function isWithinCourtBounds(
+  x: number, 
+  y: number, 
+  courtWidth?: number, 
+  courtHeight?: number
+): boolean {
+  const width = courtWidth || COURT_DIMENSIONS.width;
+  const height = courtHeight || COURT_DIMENSIONS.height;
+  
   return (
     x >= 0 &&
-    x <= COURT_DIMENSIONS.width &&
+    x <= width &&
     y >= 0 &&
-    y <= COURT_DIMENSIONS.height
+    y <= height
   );
 }
 
@@ -57,10 +65,12 @@ export function validateFormationPosition(
   position: { x: number; y: number },
   playerId: string,
   formationType: FormationType,
-  rotationIndex: number
+  rotationIndex: number,
+  courtWidth?: number,
+  courtHeight?: number
 ): { isValid: boolean; reason?: string } {
   // Basic boundary check
-  if (!isWithinCourtBounds(position.x, position.y)) {
+  if (!isWithinCourtBounds(position.x, position.y, courtWidth, courtHeight)) {
     return { isValid: false, reason: "Position is outside court boundaries" };
   }
 

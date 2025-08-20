@@ -4,7 +4,15 @@
       "Bash(pnpm typecheck:*)",
       "Bash(pnpm test:*)",
       "Bash(pnpm dev:*)",
-      "Bash(pnpm build:*)"
+      "Bash(pnpm build:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_drag",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_hover",
+      "mcp__playwright__browser_select_option",
+      "mcp__playwright__browser_console_messages"
     ],
     "deny": [],
     "ask": []

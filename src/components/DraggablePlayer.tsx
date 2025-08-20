@@ -4,9 +4,11 @@ import { motion, PanInfo } from "framer-motion";
 import {
   SystemType,
   FormationType,
+  PlayerPosition,
   PLAYER_RADIUS,
 } from "@/types";
 import { PositionManager } from "@/hooks/usePositionManager";
+import { VolleyballRulesValidator } from "@/utils/volleyballRules";
 
 interface Player {
   id: string;
@@ -22,16 +24,19 @@ interface DraggablePlayerProps {
   rotation: number;
   formation: FormationType;
   courtDimensions: { courtWidth: number; courtHeight: number };
+  rotationMap?: Record<number, string>;
   isReadOnly?: boolean;
   onDragStart?: (playerId: string) => void;
   onDragEnd?: (playerId: string, success: boolean) => void;
   onResetPosition?: (playerId: string) => void;
+  onVolleyballRuleViolation?: (playerId: string, violations: string[]) => void;
 }
 
 interface DragState {
   isDragging: boolean;
   startPosition: { x: number; y: number };
   isValidPosition: boolean;
+  volleyballViolations: string[];
 }
 
 export function DraggablePlayer({
@@ -42,18 +47,29 @@ export function DraggablePlayer({
   rotation,
   formation,
   courtDimensions,
+  rotationMap,
   isReadOnly = false,
   onDragStart,
   onDragEnd,
   onResetPosition,
+  onVolleyballRuleViolation,
 }: DraggablePlayerProps) {
   const [dragState, setDragState] = useState<DragState>({
     isDragging: false,
     startPosition: position,
     isValidPosition: true,
+    volleyballViolations: [],
   });
   const [showTooltip, setShowTooltip] = useState(false);
   const [showResetButton, setShowResetButton] = useState(false);
+
+  // Create volleyball rules validator
+  const volleyballValidator = useMemo(() => {
+    return new VolleyballRulesValidator(
+      courtDimensions.courtWidth,
+      courtDimensions.courtHeight
+    );
+  }, [courtDimensions.courtWidth, courtDimensions.courtHeight]);
 
   // Check if this position is customized
   const isCustomized = useMemo(() => {
@@ -105,6 +121,7 @@ export function DraggablePlayer({
       isDragging: true,
       startPosition: position,
       isValidPosition: true,
+      volleyballViolations: [],
     });
 
     onDragStart?.(player.id);
@@ -130,15 +147,35 @@ export function DraggablePlayer({
         rotation,
         formation,
         player.id,
-        newPosition
+        newPosition,
+        courtDimensions.courtWidth,
+        courtDimensions.courtHeight
       );
 
-      const isValid = withinBounds && validation.isValid;
+      // Get all current positions for volleyball rules validation
+      const allPositions = positionManager.getAllPositions(system, rotation, formation) as Record<string, PlayerPosition>;
+      
+      // Validate volleyball-specific rules
+      const volleyballValidation = volleyballValidator.validateVolleyballPosition(
+        newPosition,
+        player.id,
+        formation,
+        allPositions,
+        rotationMap
+      );
+
+      const isValid = withinBounds && validation.isValid && volleyballValidation.isValid;
 
       setDragState((prev) => ({
         ...prev,
         isValidPosition: isValid,
+        volleyballViolations: volleyballValidation.violations,
       }));
+
+      // Notify parent component of volleyball rule violations
+      if (volleyballValidation.violations.length > 0) {
+        onVolleyballRuleViolation?.(player.id, volleyballValidation.violations);
+      }
     },
     [
       isReadOnly,
@@ -150,6 +187,8 @@ export function DraggablePlayer({
       rotation,
       formation,
       player.id,
+      volleyballValidator,
+      onVolleyballRuleViolation,
     ]
   );
 
@@ -181,6 +220,7 @@ export function DraggablePlayer({
         isDragging: false,
         startPosition: position,
         isValidPosition: true,
+        volleyballViolations: [],
       });
 
       onDragEnd?.(player.id, success);
@@ -357,20 +397,61 @@ export function DraggablePlayer({
 
           {/* Invalid position indicator */}
           {!dragState.isValidPosition && (
-            <text
-              x={0}
-              y={-30}
-              fontSize={8}
-              textAnchor="middle"
-              fill="#ef4444"
-              style={{
-                pointerEvents: "none",
-                userSelect: "none",
-                fontWeight: "bold",
-              }}
-            >
-              Invalid
-            </text>
+            <>
+              <text
+                x={0}
+                y={-30}
+                fontSize={8}
+                textAnchor="middle"
+                fill="#ef4444"
+                style={{
+                  pointerEvents: "none",
+                  userSelect: "none",
+                  fontWeight: "bold",
+                }}
+              >
+                Invalid
+              </text>
+              
+              {/* Volleyball violations tooltip */}
+              {dragState.volleyballViolations.length > 0 && (
+                <g style={{ pointerEvents: "none" }}>
+                  <rect
+                    x={-75}
+                    y={-60}
+                    width={150}
+                    height={20 + dragState.volleyballViolations.length * 12}
+                    rx={4}
+                    fill="rgba(239, 68, 68, 0.95)"
+                    stroke="rgba(220, 38, 38, 1)"
+                    strokeWidth={1}
+                  />
+                  <text
+                    x={0}
+                    y={-45}
+                    fontSize={8}
+                    fontWeight="bold"
+                    textAnchor="middle"
+                    fill="white"
+                  >
+                    Volleyball Rule Violations:
+                  </text>
+                  {dragState.volleyballViolations.slice(0, 3).map((violation, index) => (
+                    <text
+                      key={index}
+                      x={0}
+                      y={-35 + index * 12}
+                      fontSize={7}
+                      textAnchor="middle"
+                      fill="white"
+                      style={{ maxWidth: "140px" }}
+                    >
+                      {violation.length > 25 ? `${violation.substring(0, 22)}...` : violation}
+                    </text>
+                  ))}
+                </g>
+              )}
+            </>
           )}
         </>
       )}

@@ -1,4 +1,5 @@
 export { DraggablePlayer } from "./DraggablePlayer";
+export { DragGuidelines } from "./DragGuidelines";
 export { default as ErrorBoundary } from "./ErrorBoundary";
 export { NotificationProvider, useNotifications } from "./NotificationSystem";
 export { BrowserCompatibilityWarning } from "./BrowserCompatibilityWarning";

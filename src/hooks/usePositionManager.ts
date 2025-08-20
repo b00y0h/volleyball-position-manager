@@ -40,7 +40,7 @@ export interface PositionManagerActions {
     rotation: number,
     formation: FormationType
   ) => Record<string, PlayerPosition>;
-  getAllPositions: (system: SystemType, rotation: number) => FormationPositions;
+  getAllPositions: (system: SystemType, rotation: number, formation?: FormationType) => FormationPositions | Record<string, PlayerPosition>;
 
   // Position setters
   setPosition: (
@@ -63,7 +63,9 @@ export interface PositionManagerActions {
     rotation: number,
     formation: FormationType,
     playerId: string,
-    position: { x: number; y: number }
+    position: { x: number; y: number },
+    courtWidth?: number,
+    courtHeight?: number
   ) => { isValid: boolean; reason?: string };
 
   // Customization checks
@@ -236,9 +238,12 @@ export function usePositionManager(): PositionManager {
     [state.positions]
   );
 
-  // Get all positions for a rotation (all formations)
+  // Get all positions for a rotation (all formations) or specific formation
   const getAllPositions = useCallback(
-    (system: SystemType, rotation: number): FormationPositions => {
+    (system: SystemType, rotation: number, formation?: FormationType): FormationPositions | Record<string, PlayerPosition> => {
+      if (formation) {
+        return getFormationPositions(system, rotation, formation);
+      }
       return {
         rotational: getFormationPositions(system, rotation, "rotational"),
         serveReceive: getFormationPositions(system, rotation, "serveReceive"),
@@ -403,14 +408,18 @@ export function usePositionManager(): PositionManager {
       rotation: number,
       formation: FormationType,
       playerId: string,
-      position: { x: number; y: number }
+      position: { x: number; y: number },
+      courtWidth?: number,
+      courtHeight?: number
     ): { isValid: boolean; reason?: string } => {
       // Basic formation validation
       const formationValidation = validateFormationPosition(
         position,
         playerId,
         formation,
-        rotation
+        rotation,
+        courtWidth,
+        courtHeight
       );
 
       if (!formationValidation.isValid) {

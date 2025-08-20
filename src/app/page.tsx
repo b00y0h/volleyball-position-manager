@@ -7,14 +7,15 @@ import React, {
   useRef,
 } from "react";
 import { useEnhancedPositionManager } from "@/hooks/useEnhancedPositionManager";
-import { DraggablePlayer, ResetButton, ResetPreview } from "@/components";
-import { SystemType, FormationType } from "@/types";
+import { DraggablePlayer, DragGuidelines, ResetButton, ResetPreview } from "@/components";
+import { SystemType, FormationType, PlayerPosition } from "@/types";
 import { URLStateManager } from "@/utils/URLStateManager";
 import { useNotifications } from "@/components/NotificationSystem";
 import { useStorageWithFallback } from "@/hooks/useStorageWithFallback";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { BrowserCompatibilityWarning } from "@/components/BrowserCompatibilityWarning";
 import { EnhancedPositionValidator } from "@/utils/enhancedValidation";
+import { VolleyballRulesValidator } from "@/utils/volleyballRules";
 
 // Volleyball Rotations Visualizer — UPDATED
 // - Corrected rotation generation to ensure: Opposite players are 3 positions away (diagonal),
@@ -222,6 +223,7 @@ export default function Home() {
   const [formation, setFormation] = useState<FormationType>("rotational");
   const [isAnimating, setIsAnimating] = useState(false);
   const [draggedPlayer, setDraggedPlayer] = useState<string | null>(null);
+  const [volleyballViolations, setVolleyballViolations] = useState<string[]>([]);
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [shareURL, setShareURL] = useState<string>("");
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -307,6 +309,14 @@ export default function Home() {
     );
   }, [courtDimensions.courtWidth, courtDimensions.courtHeight]);
 
+  // Initialize volleyball rules validator
+  const volleyballValidator = useMemo(() => {
+    return new VolleyballRulesValidator(
+      courtDimensions.courtWidth,
+      courtDimensions.courtHeight
+    );
+  }, [courtDimensions.courtWidth, courtDimensions.courtHeight]);
+
   // Set hydrated flag after component mounts
   useEffect(() => {
     setIsHydrated(true);
@@ -314,6 +324,23 @@ export default function Home() {
 
   // Initialize position manager
   const positionManager = useEnhancedPositionManager();
+
+  // Calculate visual guidelines for the currently dragged player
+  const visualGuidelines = useMemo(() => {
+    if (!draggedPlayer || formation !== "rotational") {
+      return { horizontalLines: [], verticalLines: [] };
+    }
+
+    try {
+      const allPositions = positionManager.getAllPositions(system, rotationIndex, formation) as Record<string, PlayerPosition>;
+      const rotations = system === "5-1" ? rotations_5_1 : rotations_6_2;
+      const rotationMap = rotations[rotationIndex];
+      return volleyballValidator.getVisualConstraints(draggedPlayer, allPositions, formation, rotationMap);
+    } catch (error) {
+      console.warn("Failed to calculate visual guidelines:", error);
+      return { horizontalLines: [], verticalLines: [] };
+    }
+  }, [draggedPlayer, formation, positionManager, system, rotationIndex, volleyballValidator]);
 
   // Check for URL parameters on initial load (only once)
   useEffect(() => {
@@ -494,12 +521,21 @@ export default function Home() {
     courtDimensions.courtHeight
   );
 
+  // Handler for volleyball rule violations
+  const handleVolleyballRuleViolation = useCallback(
+    (playerId: string, violations: string[]) => {
+      setVolleyballViolations(violations);
+    },
+    []
+  );
+
   // Drag event handlers with enhanced error handling
   const handleDragStart = useCallback(
     (playerId: string) => {
       if (!isReadOnly) {
         try {
           setDraggedPlayer(playerId);
+          setVolleyballViolations([]); // Clear violations when starting drag
         } catch (error) {
           addNotification({
             type: "error",
@@ -516,6 +552,7 @@ export default function Home() {
     (playerId: string, success: boolean) => {
       try {
         setDraggedPlayer(null);
+        setVolleyballViolations([]); // Clear violations when ending drag
 
         if (success && !isReadOnly) {
           addNotification({
@@ -1183,10 +1220,21 @@ export default function Home() {
                       onDragStart={handleDragStart}
                       onDragEnd={handleDragEnd}
                       onResetPosition={handleResetPosition}
+                      onVolleyballRuleViolation={handleVolleyballRuleViolation}
+                      rotationMap={rotationMap}
                       isReadOnly={isReadOnly}
                     />
                   );
                 })}
+
+                {/* Drag Guidelines */}
+                <DragGuidelines
+                  horizontalLines={visualGuidelines.horizontalLines}
+                  verticalLines={visualGuidelines.verticalLines}
+                  courtDimensions={courtDimensions}
+                  isDragging={!!draggedPlayer}
+                  draggedPlayerId={draggedPlayer || undefined}
+                />
               </svg>
             </ErrorBoundary>
           </div>
