@@ -34,3 +34,7 @@ export {
   type PositionDescription,
   type FormationPattern,
 } from "./PositionHelpers";
+
+// Performance optimization utilities
+export { PerformanceCache } from "./PerformanceCache";
+export { OptimizedCoordinateTransformer } from "./OptimizedCoordinateTransformer";

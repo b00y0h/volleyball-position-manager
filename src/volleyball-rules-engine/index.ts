@@ -82,6 +82,12 @@ export { OverlapValidator } from "./validation/OverlapValidator";
 // Export constraint calculator
 export { ConstraintCalculator } from "./validation/ConstraintCalculator";
 
+// Export performance optimization utilities
+export { PerformanceCache } from "./utils/PerformanceCache";
+export { OptimizedCoordinateTransformer } from "./utils/OptimizedCoordinateTransformer";
+export { OptimizedConstraintCalculator } from "./validation/OptimizedConstraintCalculator";
+export { LazyViolationAnalyzer } from "./validation/LazyViolationAnalyzer";
+
 // Export integration utilities
 export { StateConverter } from "./utils/StateConverter";
 export type {
