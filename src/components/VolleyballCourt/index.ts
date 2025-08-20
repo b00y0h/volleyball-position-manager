@@ -12,6 +12,8 @@ export {
   useVolleyballCourt,
 } from "./VolleyballCourtProvider";
 export { PlayerLayer } from "./PlayerLayer";
+export { ControlsLayer } from "./ControlsLayer";
+export * from "./controls";
 export { VolleyballCourtRulesIntegration } from "./VolleyballCourtRulesIntegration";
 export * from "./courtCoordinates";
 export type {
@@ -33,6 +35,8 @@ export type {
   ConstraintBoundaries,
   ConstraintLine,
   BoundingBox,
+  ControlsLayerProps,
+  ResetType,
 } from "./types";
 
 export type {

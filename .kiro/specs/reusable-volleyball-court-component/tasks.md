@@ -48,7 +48,7 @@
   - Write unit tests for rules engine integration and validation logic
   - _Requirements: 3.1, 3.2, 3.3, 3.5, 3.6_
 
-- [ ] 6. Extract and componentize UI controls layer
+- [x] 6. Extract and componentize UI controls layer
 
   - Create ControlsLayer.tsx component with configurable control visibility
   - Extract SystemSelector, RotationControls, FormationSelector from page.tsx
