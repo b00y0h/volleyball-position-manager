@@ -8,6 +8,8 @@ import {
 } from "./types";
 import { SystemType, FormationType } from "@/types";
 import { useEnhancedPositionManager } from "@/hooks/useEnhancedPositionManager";
+import { CourtVisualization } from "./CourtVisualization";
+import { calculateCourtDimensions } from "./courtCoordinates";
 
 // Default configuration
 const DEFAULT_CONFIG: Required<VolleyballCourtConfig> = {
@@ -105,57 +107,7 @@ function useWindowSize() {
   return windowSize;
 }
 
-// Function to calculate responsive court dimensions
-function calculateCourtDimensions(
-  windowWidth: number,
-  windowHeight: number,
-  customDimensions?: CourtDimensions
-): CourtDimensions {
-  // If custom dimensions are provided, use them
-  if (customDimensions) {
-    return {
-      width: customDimensions.width,
-      height: customDimensions.height,
-      aspectRatio:
-        customDimensions.aspectRatio ||
-        customDimensions.width / customDimensions.height,
-    };
-  }
-
-  // Reserve space for UI elements
-  const SIDEBAR_WIDTH = 300; // Right sidebar
-  const HEADER_HEIGHT = 200; // Top controls and status
-  const FOOTER_HEIGHT = 100; // Bottom info
-  const PADDING = 80; // General padding
-
-  // Available space for the court
-  const availableWidth = windowWidth - SIDEBAR_WIDTH - PADDING;
-  const availableHeight =
-    windowHeight - HEADER_HEIGHT - FOOTER_HEIGHT - PADDING;
-
-  // Calculate court size maintaining aspect ratio
-  let courtWidth = availableWidth;
-  let courtHeight = courtWidth / COURT_ASPECT_RATIO;
-
-  // If height is too large, constrain by height instead
-  if (courtHeight > availableHeight) {
-    courtHeight = availableHeight;
-    courtWidth = courtHeight * COURT_ASPECT_RATIO;
-  }
-
-  // Ensure minimum size for usability
-  const MIN_WIDTH = 400;
-  const MIN_HEIGHT = MIN_WIDTH / COURT_ASPECT_RATIO;
-
-  courtWidth = Math.max(courtWidth, MIN_WIDTH);
-  courtHeight = Math.max(courtHeight, MIN_HEIGHT);
-
-  return {
-    width: courtWidth,
-    height: courtHeight,
-    aspectRatio: COURT_ASPECT_RATIO,
-  };
-}
+// Note: calculateCourtDimensions is now imported from courtCoordinates.ts
 
 // Function to merge configurations with defaults
 function mergeConfig(
@@ -266,6 +218,20 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
       customCourtDimensions
     );
   }, [windowSize.width, windowSize.height, isHydrated, customCourtDimensions]);
+
+  // Determine theme for court visualization
+  const courtTheme = useMemo(() => {
+    if (mergedConfig.appearance.theme === "auto") {
+      // Auto-detect theme based on system preference
+      if (typeof window !== "undefined") {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light";
+      }
+      return "light";
+    }
+    return mergedConfig.appearance.theme || "light";
+  }, [mergedConfig.appearance.theme]);
 
   // Event handlers
   const handleSystemChange = useCallback(
@@ -430,34 +396,48 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
         width: courtDimensions.width,
         height: courtDimensions.height,
         position: "relative",
-        backgroundColor: "#ffffff",
-        border: "1px solid #d1d5db",
+        backgroundColor: courtTheme === "dark" ? "#1f2937" : "#ffffff",
+        border: `1px solid ${courtTheme === "dark" ? "#374151" : "#d1d5db"}`,
         borderRadius: "8px",
         overflow: "hidden",
         ...style,
       }}
     >
-      {/* Temporary placeholder content */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-lg font-medium text-gray-900 mb-2">
+      {/* Court Visualization Layer */}
+      <CourtVisualization
+        dimensions={courtDimensions}
+        theme={courtTheme}
+        courtColor={mergedConfig.appearance.courtColor}
+        showGrid={false} // Can be made configurable later
+        showZones={true} // Can be made configurable later
+        className="absolute inset-0"
+      />
+
+      {/* Temporary overlay with component info */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="text-center bg-white/90 dark:bg-gray-800/90 p-4 rounded-lg shadow-lg">
+          <div className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
             Volleyball Court Component
           </div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-gray-600 dark:text-gray-400">
             System: {system} | Rotation: {rotationIndex + 1} | Formation:{" "}
             {formation}
           </div>
-          <div className="text-xs text-gray-500 mt-2">
+          <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
             {courtDimensions.width} × {courtDimensions.height}
+          </div>
+          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+            Court visualization layer active
           </div>
         </div>
       </div>
 
       {/* Debug info in development */}
       {process.env.NODE_ENV === "development" && (
-        <div className="absolute top-2 left-2 text-xs text-gray-400 bg-white/80 p-1 rounded">
+        <div className="absolute top-2 left-2 text-xs text-gray-400 bg-white/80 dark:bg-gray-800/80 p-1 rounded">
           Players: {currentPlayers.length} | Rotations:{" "}
-          {currentRotations.length} | ReadOnly: {readOnly ? "Yes" : "No"}
+          {currentRotations.length} | ReadOnly: {readOnly ? "Yes" : "No"} |
+          Theme: {courtTheme}
         </div>
       )}
     </div>

@@ -9,7 +9,7 @@
   - Write unit tests for configuration parsing and default value handling
   - _Requirements: 1.1, 1.5, 2.1, 2.6_
 
-- [ ] 2. Extract and componentize court visualization layer
+- [x] 2. Extract and componentize court visualization layer
 
   - Create CourtVisualization.tsx component with SVG court rendering extracted from page.tsx
   - Implement responsive sizing logic and aspect ratio maintenance

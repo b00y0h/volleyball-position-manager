@@ -6,6 +6,8 @@
  */
 
 export { VolleyballCourt } from "./VolleyballCourt";
+export { CourtVisualization } from "./CourtVisualization";
+export * from "./courtCoordinates";
 export type {
   VolleyballCourtProps,
   VolleyballCourtConfig,
