@@ -65,7 +65,7 @@
   - Write integration tests for dynamic constraint updates during multi-player movement
   - _Requirements: 9.4, 9.5, 9.6, 9.7_
 
-- [ ] 8. Create position labeling and helper utilities
+- [x] 8. Create position labeling and helper utilities
 
   - Implement PositionHelpers class with slot labeling functions (1=RB, 2=RF, etc.)
   - Add getSlotColumn function returning Left/Middle/Right for each slot

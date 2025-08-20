@@ -25,3 +25,12 @@ export {
 
 // Neighbor relationship calculator
 export { NeighborCalculator } from "./NeighborCalculator";
+
+// Position labeling and helper utilities
+export {
+  PositionHelpers,
+  type Column,
+  type Row,
+  type PositionDescription,
+  type FormationPattern,
+} from "./PositionHelpers";

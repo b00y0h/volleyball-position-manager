@@ -67,6 +67,15 @@ export { ToleranceUtils } from "./utils/ToleranceUtils";
 // Export neighbor relationship calculator
 export { NeighborCalculator } from "./utils/NeighborCalculator";
 
+// Export position labeling and helper utilities
+export type {
+  Column,
+  Row,
+  PositionDescription,
+  FormationPattern,
+} from "./utils/PositionHelpers";
+export { PositionHelpers } from "./utils/PositionHelpers";
+
 // Export validation engine
 export { OverlapValidator } from "./validation/OverlapValidator";
 
