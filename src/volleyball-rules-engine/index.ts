@@ -66,3 +66,6 @@ export { ToleranceUtils } from "./utils/ToleranceUtils";
 
 // Export neighbor relationship calculator
 export { NeighborCalculator } from "./utils/NeighborCalculator";
+
+// Export validation engine
+export { OverlapValidator } from "./validation/OverlapValidator";
