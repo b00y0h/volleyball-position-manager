@@ -3,13 +3,15 @@
  */
 
 import React, { useState, useCallback } from "react";
+import { useVolleyballCourt } from "../VolleyballCourtProvider";
 
 export interface ShareButtonProps {
-  onShare: () => void;
+  onShare?: () => void;
   isAnimating?: boolean;
   className?: string;
   variant?: "primary" | "secondary";
   size?: "sm" | "md" | "lg";
+  showCopyFeedback?: boolean;
 }
 
 export const ShareButton: React.FC<ShareButtonProps> = ({
@@ -18,21 +20,46 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
   className = "",
   variant = "primary",
   size = "md",
+  showCopyFeedback = true,
 }) => {
+  const { generateShareURL, copyShareURL } = useVolleyballCourt();
   const [isSharing, setIsSharing] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
 
   const handleShare = useCallback(async () => {
     if (isAnimating || isSharing) return;
 
     setIsSharing(true);
     try {
-      await onShare();
+      // Generate the share URL
+      const shareData = await generateShareURL();
+
+      // Copy to clipboard
+      await copyShareURL(shareData.url);
+
+      // Show feedback
+      if (showCopyFeedback) {
+        setShowCopied(true);
+        setTimeout(() => setShowCopied(false), 2000);
+      }
+
+      // Call external callback if provided
+      if (onShare) {
+        onShare();
+      }
     } catch (error) {
       console.error("Share failed:", error);
     } finally {
       setIsSharing(false);
     }
-  }, [onShare, isAnimating, isSharing]);
+  }, [
+    generateShareURL,
+    copyShareURL,
+    onShare,
+    isAnimating,
+    isSharing,
+    showCopyFeedback,
+  ]);
 
   const getButtonClasses = () => {
     const baseClasses =
@@ -62,7 +89,9 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       className={getButtonClasses()}
       disabled={isAnimating || isSharing}
       title={
-        isAnimating
+        showCopied
+          ? "URL copied to clipboard!"
+          : isAnimating
           ? "Please wait for animation to complete"
           : isSharing
           ? "Generating share URL..."
@@ -70,7 +99,24 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
       }
       data-testid="share-button"
     >
-      {isSharing ? (
+      {showCopied ? (
+        <>
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
+          Copied!
+        </>
+      ) : isSharing ? (
         <>
           <svg
             className="w-4 h-4 animate-spin"

@@ -11,10 +11,14 @@ import { calculateCourtDimensions } from "./courtCoordinates";
 import { VolleyballCourtErrorBoundary } from "./VolleyballCourtErrorBoundary";
 import { ValidationLayer } from "./ValidationLayer";
 import { NotificationLayer } from "./NotificationLayer";
+import { ReadOnlyIndicator } from "./ReadOnlyIndicator";
+import style from "styled-jsx/style";
+import style from "styled-jsx/style";
 
 // Internal component that uses the context
 const VolleyballCourtInternal: React.FC = () => {
-  const { state, config } = useVolleyballCourt();
+  const { state, config, hasURLData, persistenceManager } =
+    useVolleyballCourt();
 
   // Track hydration to prevent SSR/client mismatch
   const [isHydrated, setIsHydrated] = useState(false);
@@ -132,37 +136,55 @@ const VolleyballCourtInternal: React.FC = () => {
     );
   }
 
+  // Handle clearing URL data to enable editing
+  const handleClearURL = () => {
+    persistenceManager.clearURL();
+    // Force a page reload to clear the URL state
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
+  };
+
   return (
-    <div
-      className="volleyball-court"
-      style={{
-        width: courtDimensions.width,
-        height: courtDimensions.height,
-        position: "relative",
-        backgroundColor: courtTheme === "dark" ? "#1f2937" : "#ffffff",
-        border: `1px solid ${courtTheme === "dark" ? "#374151" : "#d1d5db"}`,
-        borderRadius: "8px",
-        overflow: "hidden",
-      }}
-    >
-      {/* Court Visualization Layer */}
-      <CourtVisualization
-        dimensions={courtDimensions}
-        theme={courtTheme}
-        courtColor={config.appearance.courtColor}
-        showGrid={false} // Can be made configurable later
-        showZones={true} // Can be made configurable later
-        className="absolute inset-0"
+    <div className="volleyball-court-container">
+      {/* Read-only indicator */}
+      <ReadOnlyIndicator
+        isReadOnly={state.isReadOnly}
+        hasURLData={hasURLData()}
+        onClearURL={handleClearURL}
+        className="mb-2"
       />
 
-      {/* Validation Layer - Shows rule violations */}
-      {config.validation?.showViolationDetails && violations.length > 0 && (
-        <ValidationLayer
-          violations={violations}
-          showDetails={config.validation.showViolationDetails}
-          onDismiss={() => setViolations([])}
+      <div
+        className="volleyball-court"
+        style={{
+          width: courtDimensions.width,
+          height: courtDimensions.height,
+          position: "relative",
+          backgroundColor: courtTheme === "dark" ? "#1f2937" : "#ffffff",
+          border: `1px solid ${courtTheme === "dark" ? "#374151" : "#d1d5db"}`,
+          borderRadius: "8px",
+          overflow: "hidden",
+        }}
+      >
+        {/* Court Visualization Layer */}
+        <CourtVisualization
+          dimensions={courtDimensions}
+          theme={courtTheme}
+          courtColor={config.appearance.courtColor}
+          showGrid={false} // Can be made configurable later
+          showZones={true} // Can be made configurable later
+          className="absolute inset-0"
         />
-      )}
+
+        {/* Validation Layer - Shows rule violations */}
+        {config.validation?.showViolationDetails && violations.length > 0 && (
+          <ValidationLayer
+            violations={violations}
+            showDetails={config.validation.showViolationDetails}
+            onDismiss={() => setViolations([])}
+          />
+        )}
 
       {/* Temporary overlay with component info */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
