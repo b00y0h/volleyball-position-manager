@@ -1,11 +1,50 @@
 /**
  * Volleyball Rules Engine
  *
- * A TypeScript library for validating volleyball player positioning according to
- * official overlap and rotation fault rules for indoor 6-on-6 volleyball.
+ * A comprehensive TypeScript library for validating volleyball player positioning
+ * according to official overlap and rotation fault rules for indoor 6-on-6 volleyball.
+ *
+ * @example
+ * ```typescript
+ * import { VolleyballRulesEngine } from '@/volleyball-rules-engine';
+ *
+ * // Simple validation
+ * const result = VolleyballRulesEngine.validateLineup(players);
+ * if (!result.isLegal) {
+ *   console.log('Violations found:', result.violations);
+ * }
+ *
+ * // Real-time constraints for drag operations
+ * const bounds = VolleyballRulesEngine.getPlayerConstraints(3, players);
+ * ```
  */
 
-// Export all types and interfaces
+// ============================================================================
+// MAIN API - Recommended for most use cases
+// ============================================================================
+
+/**
+ * Main Volleyball Rules Engine class - the primary interface for all
+ * volleyball rules validation and constraint operations.
+ *
+ * @example
+ * ```typescript
+ * // Basic validation
+ * const result = VolleyballRulesEngine.validateLineup(players);
+ *
+ * // Real-time constraints
+ * const bounds = VolleyballRulesEngine.getPlayerConstraints(3, players);
+ *
+ * // Position helpers
+ * const label = VolleyballRulesEngine.getSlotLabel(4); // "LF"
+ * ```
+ */
+export { VolleyballRulesEngine } from "./VolleyballRulesEngine";
+
+// ============================================================================
+// CORE TYPES AND INTERFACES
+// ============================================================================
+
 export type {
   Role,
   RotationSlot,
@@ -17,7 +56,10 @@ export type {
   CoordinateBounds,
 } from "./types";
 
-// Export constants
+// ============================================================================
+// CONSTANTS AND CONFIGURATION
+// ============================================================================
+
 export {
   COORDINATE_SYSTEM,
   SCREEN_COORDINATE_SYSTEM,
@@ -25,7 +67,11 @@ export {
   EXTENDED_BOUNDS,
 } from "./types";
 
-// Export type guards and validation functions
+// ============================================================================
+// ADVANCED API - For specialized use cases
+// ============================================================================
+
+// Type guards and validation functions
 export {
   isValidRole,
   isValidRotationSlot,
@@ -41,9 +87,8 @@ export {
   isValidCoordinateBounds,
 } from "./types";
 
-// Export validation utilities
+// Low-level validation utilities
 export type { ValidationError } from "./utils/ValidationUtils";
-
 export {
   validatePlayerCount,
   validateUniqueSlots,
@@ -57,17 +102,17 @@ export {
   hasAllRotationSlots,
 } from "./utils/ValidationUtils";
 
-// Export coordinate transformation utilities
+// Core validation and constraint engines
+export { OverlapValidator } from "./validation/OverlapValidator";
+export { ConstraintCalculator } from "./validation/ConstraintCalculator";
+
+// Utility classes
 export type { Point } from "./utils/CoordinateTransformer";
 export { CoordinateTransformer } from "./utils/CoordinateTransformer";
-
-// Export tolerance utilities
 export { ToleranceUtils } from "./utils/ToleranceUtils";
-
-// Export neighbor relationship calculator
 export { NeighborCalculator } from "./utils/NeighborCalculator";
 
-// Export position labeling and helper utilities
+// Position helpers
 export type {
   Column,
   Row,
@@ -76,21 +121,18 @@ export type {
 } from "./utils/PositionHelpers";
 export { PositionHelpers } from "./utils/PositionHelpers";
 
-// Export validation engine
-export { OverlapValidator } from "./validation/OverlapValidator";
-
-// Export constraint calculator
-export { ConstraintCalculator } from "./validation/ConstraintCalculator";
-
-// Export performance optimization utilities
-export { PerformanceCache } from "./utils/PerformanceCache";
-export { OptimizedCoordinateTransformer } from "./utils/OptimizedCoordinateTransformer";
-export { OptimizedConstraintCalculator } from "./validation/OptimizedConstraintCalculator";
-export { LazyViolationAnalyzer } from "./validation/LazyViolationAnalyzer";
-
-// Export integration utilities
+// Integration utilities
 export { StateConverter } from "./utils/StateConverter";
 export type {
   ScreenPlayerState,
   VolleyballPlayerState,
 } from "./utils/StateConverter";
+
+// ============================================================================
+// PERFORMANCE OPTIMIZATIONS - For high-performance applications
+// ============================================================================
+
+export { PerformanceCache } from "./utils/PerformanceCache";
+export { OptimizedCoordinateTransformer } from "./utils/OptimizedCoordinateTransformer";
+export { OptimizedConstraintCalculator } from "./validation/OptimizedConstraintCalculator";
+export { LazyViolationAnalyzer } from "./validation/LazyViolationAnalyzer";
