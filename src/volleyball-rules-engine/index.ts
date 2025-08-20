@@ -81,3 +81,10 @@ export { OverlapValidator } from "./validation/OverlapValidator";
 
 // Export constraint calculator
 export { ConstraintCalculator } from "./validation/ConstraintCalculator";
+
+// Export integration utilities
+export { StateConverter } from "./utils/StateConverter";
+export type {
+  ScreenPlayerState,
+  VolleyballPlayerState,
+} from "./utils/StateConverter";

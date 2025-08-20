@@ -1,467 +1,524 @@
-import { useCallback, useMemo } from 'react';
-import { usePositionManager } from './usePositionManager';
-import { useUndoRedo, UndoRedoAction } from './useUndoRedo';
-import { SystemType, FormationType, CustomPositionsState } from '@/types';
+import { useState, useCallback, useEffect, useMemo } from "react";
+import {
+  PlayerPosition,
+  FormationType,
+  SystemType,
+  CustomPositionsState,
+  FormationPositions,
+} from "@/types";
+import { usePositionManager, PositionManager } from "./usePositionManager";
+import { OverlapValidator } from "@/volleyball-rules-engine/validation/OverlapValidator";
+import { ConstraintCalculator } from "@/volleyball-rules-engine/validation/ConstraintCalculator";
+import { StateConverter } from "@/volleyball-rules-engine/utils/StateConverter";
+import { RotationSlot } from "@/volleyball-rules-engine/types/PlayerState";
+import { OverlapResult } from "@/volleyball-rules-engine/types/ValidationResult";
+import { PositionBounds } from "@/volleyball-rules-engine/validation/ConstraintCalculator";
 
-interface ResetCapabilities {
-  currentRotation: boolean;
-  allRotations: boolean;  
-  currentFormation: boolean;
-  system: boolean;
+export interface VolleyballValidationResult {
+  isValid: boolean;
+  violations: string[];
+  detailedResult?: OverlapResult;
 }
 
-interface ResetResult {
-  success: boolean;
-  affectedPositions: number;
-  error?: string;
+export interface DragConstraints {
+  bounds?: PositionBounds;
+  isValid: (x: number, y: number) => boolean;
+  snapToValid: (x: number, y: number) => { x: number; y: number };
 }
 
-interface EnhancedPositionManagerActions {
-  // Enhanced reset operations with undo support
-  resetCurrentRotation: (
+export interface EnhancedPositionManagerActions {
+  // Volleyball rules validation
+  validateCurrentFormation: (
     system: SystemType,
     rotation: number,
-    formation: FormationType
-  ) => Promise<ResetResult>;
-  
-  resetAllRotations: (
-    system: SystemType,
-    formation: FormationType
-  ) => Promise<ResetResult>;
-  
-  resetSelectedFormation: (
-    system: SystemType,
-    formation: FormationType
-  ) => Promise<ResetResult>;
-  
-  resetEntireSystem: (
-    system: SystemType
-  ) => Promise<ResetResult>;
-  
-  // Undo/Redo operations
-  undo: () => Promise<boolean>;
-  redo: () => Promise<boolean>;
-  canUndo: boolean;
-  canRedo: boolean;
-  
-  // Reset capability detection
-  getResetCapabilities: (
+    formation: FormationType,
+    rotationMap?: Record<number, string>
+  ) => VolleyballValidationResult;
+
+  // Real-time constraint calculation
+  getConstraintsForPlayer: (
     system: SystemType,
     rotation: number,
-    formation: FormationType
-  ) => ResetCapabilities;
-  
-  // Batch operations for complex resets
-  startResetBatch: (description: string) => void;
-  endResetBatch: () => void;
-  discardResetBatch: () => void;
-  
-  // Preview affected positions
-  getAffectedPositions: (
-    operation: 'current' | 'all' | 'formation' | 'system',
+    formation: FormationType,
+    playerId: string,
+    rotationMap?: Record<number, string>,
+    serverSlot?: RotationSlot
+  ) => DragConstraints;
+
+  // Enhanced position validation
+  validatePositionWithRules: (
     system: SystemType,
-    rotation?: number,
-    formation?: FormationType
-  ) => string[];
+    rotation: number,
+    formation: FormationType,
+    playerId: string,
+    position: { x: number; y: number },
+    rotationMap?: Record<number, string>,
+    courtWidth?: number,
+    courtHeight?: number
+  ) => { isValid: boolean; reason?: string; volleyballViolations?: string[] };
+
+  // Position setting with volleyball rules
+  setPositionWithValidation: (
+    system: SystemType,
+    rotation: number,
+    formation: FormationType,
+    playerId: string,
+    position: { x: number; y: number },
+    rotationMap?: Record<number, string>,
+    enforceRules?: boolean
+  ) => { success: boolean; violations?: string[] };
+
+  // Batch operations with validation
+  setFormationPositionsWithValidation: (
+    system: SystemType,
+    rotation: number,
+    formation: FormationType,
+    positions: Record<string, PlayerPosition>,
+    rotationMap?: Record<number, string>,
+    enforceRules?: boolean
+  ) => { success: boolean; violations?: string[] };
+
+  // Utility methods
+  isVolleyballRulesEnabled: () => boolean;
+  setVolleyballRulesEnabled: (enabled: boolean) => void;
+  getVolleyballValidationSummary: (
+    system: SystemType,
+    rotation: number,
+    formation: FormationType,
+    rotationMap?: Record<number, string>
+  ) => {
+    totalViolations: number;
+    violationsByType: Record<string, number>;
+    affectedPlayers: string[];
+  };
 }
 
-type EnhancedPositionManager = ReturnType<typeof usePositionManager> & EnhancedPositionManagerActions;
+export type EnhancedPositionManager = PositionManager &
+  EnhancedPositionManagerActions;
 
+/**
+ * Enhanced position manager with volleyball rules integration
+ */
 export function useEnhancedPositionManager(): EnhancedPositionManager {
-  const positionManager = usePositionManager();
-  
-  const {
-    pushAction,
-    undo: undoAction,
-    redo: redoAction,
-    canUndo,
-    canRedo,
-    startBatch,
-    endBatch,
-    discardBatch,
-  } = useUndoRedo<{ '5-1': CustomPositionsState; '6-2': CustomPositionsState }>(
-    50, // Max 50 undo operations
-    // onUndo callback
-    (action) => {
-      // For now, we'll handle this by restoring the entire position state
-      // In a more sophisticated implementation, we could store more specific action data
-      console.log('Undo action:', action.description);
+  const baseManager = usePositionManager();
+  const [volleyballRulesEnabled, setVolleyballRulesEnabledState] =
+    useState(true);
+
+  // Validate current formation using volleyball rules
+  const validateCurrentFormation = useCallback(
+    (
+      system: SystemType,
+      rotation: number,
+      formation: FormationType,
+      rotationMap?: Record<number, string>
+    ): VolleyballValidationResult => {
+      if (
+        !volleyballRulesEnabled ||
+        !rotationMap ||
+        formation === "rotational"
+      ) {
+        return { isValid: true, violations: [] };
+      }
+
+      try {
+        // Get current positions
+        const positions = baseManager.getFormationPositions(
+          system,
+          rotation,
+          formation
+        );
+
+        // Convert to volleyball states
+        const serverSlot: RotationSlot = 1; // Default server slot
+        const volleyballStates = StateConverter.formationToVolleyballStates(
+          positions,
+          rotationMap,
+          serverSlot
+        );
+
+        // Validate using overlap validator
+        const result = OverlapValidator.checkOverlap(volleyballStates);
+
+        return {
+          isValid: result.isLegal,
+          violations: result.violations.map((v) => v.message),
+          detailedResult: result,
+        };
+      } catch (error) {
+        console.warn(
+          "Error validating formation with volleyball rules:",
+          error
+        );
+        return { isValid: true, violations: [] };
+      }
     },
-    // onRedo callback
-    (action) => {
-      // For now, we'll handle this by restoring the entire position state
-      // In a more sophisticated implementation, we could store more specific action data
-      console.log('Redo action:', action.description);
-    }
+    [volleyballRulesEnabled, baseManager]
   );
 
-  const createStateSnapshot = useCallback(() => {
-    return positionManager.positions;
-  }, [positionManager.positions]);
+  // Get constraints for a specific player
+  const getConstraintsForPlayer = useCallback(
+    (
+      system: SystemType,
+      rotation: number,
+      formation: FormationType,
+      playerId: string,
+      rotationMap?: Record<number, string>,
+      serverSlot: RotationSlot = 1
+    ): DragConstraints => {
+      const defaultConstraints: DragConstraints = {
+        isValid: () => true,
+        snapToValid: (x, y) => ({ x, y }),
+      };
 
-  const countCustomizedPositions = useCallback((
-    system: SystemType,
-    rotation?: number,
-    formation?: FormationType
-  ): number => {
-    let count = 0;
-    const systemPositions = positionManager.positions[system] || {};
-    
-    if (rotation !== undefined && formation !== undefined) {
-      // Count for specific rotation and formation
-      const rotationData = systemPositions[rotation];
-      if (rotationData && rotationData[formation]) {
-        count = Object.keys(rotationData[formation]).length;
+      if (
+        !volleyballRulesEnabled ||
+        !rotationMap ||
+        formation === "rotational"
+      ) {
+        return defaultConstraints;
       }
-    } else if (formation !== undefined) {
-      // Count for specific formation across all rotations
-      for (let r = 0; r < 6; r++) {
-        const rotationData = systemPositions[r];
-        if (rotationData && rotationData[formation]) {
-          count += Object.keys(rotationData[formation]).length;
+
+      try {
+        // Get player's rotation slot
+        const slotEntry = Object.entries(rotationMap).find(
+          ([, id]) => id === playerId
+        );
+        if (!slotEntry) {
+          return defaultConstraints;
+        }
+
+        const playerSlot = parseInt(slotEntry[0]) as RotationSlot;
+        const isServer = playerSlot === serverSlot;
+
+        // Get current positions
+        const positions = baseManager.getFormationPositions(
+          system,
+          rotation,
+          formation
+        );
+
+        // Convert to volleyball states
+        const volleyballStates = StateConverter.formationToVolleyballStates(
+          positions,
+          rotationMap,
+          serverSlot
+        );
+
+        // Create position map by slot
+        const positionMap = new Map();
+        volleyballStates.forEach((state) => {
+          positionMap.set(state.slot, state);
+        });
+
+        // Calculate constraints
+        const bounds = ConstraintCalculator.calculateValidBounds(
+          playerSlot,
+          positionMap,
+          isServer
+        );
+
+        return {
+          bounds: bounds.isConstrained ? bounds : undefined,
+          isValid: (x, y) => {
+            // Convert screen coordinates to volleyball coordinates
+            const vbCoords = StateConverter.playerPositionToVolleyball({
+              x,
+              y,
+              isCustom: true,
+              lastModified: new Date(),
+            });
+            return ConstraintCalculator.isPositionValid(
+              playerSlot,
+              vbCoords,
+              positionMap,
+              isServer
+            );
+          },
+          snapToValid: (x, y) => {
+            // Convert to volleyball coordinates
+            const vbCoords = StateConverter.playerPositionToVolleyball({
+              x,
+              y,
+              isCustom: true,
+              lastModified: new Date(),
+            });
+            const snappedVb = ConstraintCalculator.snapToValidPosition(
+              playerSlot,
+              vbCoords,
+              positionMap,
+              isServer
+            );
+            // Convert back to screen coordinates
+            const screenPos =
+              StateConverter.volleyballToPlayerPosition(snappedVb);
+            return { x: screenPos.x, y: screenPos.y };
+          },
+        };
+      } catch (error) {
+        console.warn("Error calculating constraints for player:", error);
+        return defaultConstraints;
+      }
+    },
+    [volleyballRulesEnabled, baseManager]
+  );
+
+  // Enhanced position validation with volleyball rules
+  const validatePositionWithRules = useCallback(
+    (
+      system: SystemType,
+      rotation: number,
+      formation: FormationType,
+      playerId: string,
+      position: { x: number; y: number },
+      rotationMap?: Record<number, string>,
+      courtWidth?: number,
+      courtHeight?: number
+    ): {
+      isValid: boolean;
+      reason?: string;
+      volleyballViolations?: string[];
+    } => {
+      // First validate with base manager
+      const baseValidation = baseManager.validatePosition(
+        system,
+        rotation,
+        formation,
+        playerId,
+        position,
+        courtWidth,
+        courtHeight
+      );
+
+      if (!baseValidation.isValid) {
+        return baseValidation;
+      }
+
+      // Then validate with volleyball rules if enabled
+      if (
+        !volleyballRulesEnabled ||
+        !rotationMap ||
+        formation === "rotational"
+      ) {
+        return baseValidation;
+      }
+
+      try {
+        // Get current positions and update with new position
+        const currentPositions = baseManager.getFormationPositions(
+          system,
+          rotation,
+          formation
+        );
+        const updatedPositions = {
+          ...currentPositions,
+          [playerId]: {
+            x: position.x,
+            y: position.y,
+            isCustom: true,
+            lastModified: new Date(),
+          },
+        };
+
+        // Convert to volleyball states
+        const serverSlot: RotationSlot = 1;
+        const volleyballStates = StateConverter.formationToVolleyballStates(
+          updatedPositions,
+          rotationMap,
+          serverSlot
+        );
+
+        // Validate using overlap validator
+        const result = OverlapValidator.checkOverlap(volleyballStates);
+
+        if (!result.isLegal) {
+          return {
+            isValid: false,
+            reason: "Volleyball rule violations",
+            volleyballViolations: result.violations.map((v) => v.message),
+          };
+        }
+
+        return { isValid: true };
+      } catch (error) {
+        console.warn("Error validating position with volleyball rules:", error);
+        return baseValidation;
+      }
+    },
+    [volleyballRulesEnabled, baseManager]
+  );
+
+  // Set position with volleyball rules validation
+  const setPositionWithValidation = useCallback(
+    (
+      system: SystemType,
+      rotation: number,
+      formation: FormationType,
+      playerId: string,
+      position: { x: number; y: number },
+      rotationMap?: Record<number, string>,
+      enforceRules: boolean = true
+    ): { success: boolean; violations?: string[] } => {
+      if (enforceRules && volleyballRulesEnabled) {
+        const validation = validatePositionWithRules(
+          system,
+          rotation,
+          formation,
+          playerId,
+          position,
+          rotationMap
+        );
+
+        if (!validation.isValid) {
+          return {
+            success: false,
+            violations: validation.volleyballViolations || [
+              validation.reason || "Invalid position",
+            ],
+          };
         }
       }
-    } else {
-      // Count for entire system
-      Object.values(systemPositions).forEach(rotationData => {
-        if (rotationData) {
-          Object.values(rotationData).forEach(formationData => {
-            if (formationData) {
-              count += Object.keys(formationData).length;
+
+      const success = baseManager.setPosition(
+        system,
+        rotation,
+        formation,
+        playerId,
+        position
+      );
+
+      return { success };
+    },
+    [volleyballRulesEnabled, validatePositionWithRules, baseManager]
+  );
+
+  // Set formation positions with volleyball rules validation
+  const setFormationPositionsWithValidation = useCallback(
+    (
+      system: SystemType,
+      rotation: number,
+      formation: FormationType,
+      positions: Record<string, PlayerPosition>,
+      rotationMap?: Record<number, string>,
+      enforceRules: boolean = true
+    ): { success: boolean; violations?: string[] } => {
+      if (
+        enforceRules &&
+        volleyballRulesEnabled &&
+        rotationMap &&
+        formation !== "rotational"
+      ) {
+        try {
+          // Convert to volleyball states
+          const serverSlot: RotationSlot = 1;
+          const volleyballStates = StateConverter.formationToVolleyballStates(
+            positions,
+            rotationMap,
+            serverSlot
+          );
+
+          // Validate using overlap validator
+          const result = OverlapValidator.checkOverlap(volleyballStates);
+
+          if (!result.isLegal) {
+            return {
+              success: false,
+              violations: result.violations.map((v) => v.message),
+            };
+          }
+        } catch (error) {
+          console.warn("Error validating formation positions:", error);
+        }
+      }
+
+      const success = baseManager.setFormationPositions(
+        system,
+        rotation,
+        formation,
+        positions
+      );
+
+      return { success };
+    },
+    [volleyballRulesEnabled, baseManager]
+  );
+
+  // Get volleyball validation summary
+  const getVolleyballValidationSummary = useCallback(
+    (
+      system: SystemType,
+      rotation: number,
+      formation: FormationType,
+      rotationMap?: Record<number, string>
+    ) => {
+      const validation = validateCurrentFormation(
+        system,
+        rotation,
+        formation,
+        rotationMap
+      );
+
+      const violationsByType: Record<string, number> = {};
+      const affectedPlayers: Set<string> = new Set();
+
+      if (validation.detailedResult) {
+        validation.detailedResult.violations.forEach((violation) => {
+          violationsByType[violation.code] =
+            (violationsByType[violation.code] || 0) + 1;
+          violation.slots.forEach((slot) => {
+            if (rotationMap) {
+              const playerId = rotationMap[slot];
+              if (playerId) {
+                affectedPlayers.add(playerId);
+              }
             }
           });
-        }
-      });
-    }
-    
-    return count;
-  }, [positionManager.positions]);
-
-  const resetCurrentRotation = useCallback(async (
-    system: SystemType,
-    rotation: number,
-    formation: FormationType
-  ): Promise<ResetResult> => {
-    try {
-      const beforeState = createStateSnapshot();
-      const affectedPositions = countCustomizedPositions(system, rotation, formation);
-      
-      if (affectedPositions === 0) {
-        return {
-          success: true,
-          affectedPositions: 0,
-        };
-      }
-
-      // Perform the reset
-      positionManager.resetFormation(system, rotation, formation);
-      positionManager.saveImmediate();
-      
-      const afterState = createStateSnapshot();
-      
-      // Record the action for undo
-      pushAction({
-        description: `Reset ${formation} formation for rotation ${rotation + 1}`,
-        previousState: beforeState,
-        newState: afterState,
-        type: 'reset',
-      });
-
-      return {
-        success: true,
-        affectedPositions,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        affectedPositions: 0,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  }, [positionManager, createStateSnapshot, countCustomizedPositions, pushAction]);
-
-  const resetAllRotations = useCallback(async (
-    system: SystemType,
-    formation: FormationType
-  ): Promise<ResetResult> => {
-    try {
-      const beforeState = createStateSnapshot();
-      const affectedPositions = countCustomizedPositions(system, undefined, formation);
-      
-      if (affectedPositions === 0) {
-        return {
-          success: true,
-          affectedPositions: 0,
-        };
-      }
-
-      startBatch(`Reset all rotations in ${formation} formation`);
-      
-      // Reset all 6 rotations for this formation
-      for (let rotation = 0; rotation < 6; rotation++) {
-        positionManager.resetFormation(system, rotation, formation);
-      }
-      
-      positionManager.saveImmediate();
-      const afterState = createStateSnapshot();
-      
-      // Record batch action
-      pushAction({
-        description: `Reset all rotations in ${formation} formation`,
-        previousState: beforeState,
-        newState: afterState,
-        type: 'reset',
-      });
-      
-      endBatch();
-
-      return {
-        success: true,
-        affectedPositions,
-      };
-    } catch (error) {
-      discardBatch();
-      return {
-        success: false,
-        affectedPositions: 0,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  }, [positionManager, createStateSnapshot, countCustomizedPositions, pushAction, startBatch, endBatch, discardBatch]);
-
-  const resetSelectedFormation = useCallback(async (
-    system: SystemType,
-    formation: FormationType
-  ): Promise<ResetResult> => {
-    try {
-      const beforeState = createStateSnapshot();
-      const affectedPositions = countCustomizedPositions(system, undefined, formation);
-      
-      if (affectedPositions === 0) {
-        return {
-          success: true,
-          affectedPositions: 0,
-        };
-      }
-
-      startBatch(`Reset entire ${formation} formation`);
-      
-      // Reset the formation across all rotations
-      for (let rotation = 0; rotation < 6; rotation++) {
-        positionManager.resetFormation(system, rotation, formation);
-      }
-      
-      positionManager.saveImmediate();
-      const afterState = createStateSnapshot();
-      
-      // Record batch action
-      pushAction({
-        description: `Reset entire ${formation} formation`,
-        previousState: beforeState,
-        newState: afterState,
-        type: 'reset',
-      });
-      
-      endBatch();
-
-      return {
-        success: true,
-        affectedPositions,
-      };
-    } catch (error) {
-      discardBatch();
-      return {
-        success: false,
-        affectedPositions: 0,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  }, [positionManager, createStateSnapshot, countCustomizedPositions, pushAction, startBatch, endBatch, discardBatch]);
-
-  const resetEntireSystem = useCallback(async (
-    system: SystemType
-  ): Promise<ResetResult> => {
-    try {
-      const beforeState = createStateSnapshot();
-      const affectedPositions = countCustomizedPositions(system);
-      
-      if (affectedPositions === 0) {
-        return {
-          success: true,
-          affectedPositions: 0,
-        };
-      }
-
-      // Perform the reset
-      positionManager.resetSystem(system);
-      positionManager.saveImmediate();
-      
-      const afterState = createStateSnapshot();
-      
-      // Record the action for undo
-      pushAction({
-        description: `Reset entire ${system} system`,
-        previousState: beforeState,
-        newState: afterState,
-        type: 'system',
-      });
-
-      return {
-        success: true,
-        affectedPositions,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        affectedPositions: 0,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    }
-  }, [positionManager, createStateSnapshot, countCustomizedPositions, pushAction]);
-
-  const undo = useCallback(async (): Promise<boolean> => {
-    const action = undoAction();
-    if (action) {
-      positionManager.saveImmediate();
-      return true;
-    }
-    return false;
-  }, [undoAction, positionManager]);
-
-  const redo = useCallback(async (): Promise<boolean> => {
-    const action = redoAction();
-    if (action) {
-      positionManager.saveImmediate();
-      return true;
-    }
-    return false;
-  }, [redoAction, positionManager]);
-
-  const getResetCapabilities = useCallback((
-    system: SystemType,
-    rotation: number,
-    formation: FormationType
-  ): ResetCapabilities => {
-    return {
-      currentRotation: positionManager.isFormationCustomized(system, rotation, formation),
-      allRotations: positionManager.isSystemCustomized(system), // Simplified check
-      currentFormation: positionManager.isSystemCustomized(system), // Will be refined
-      system: positionManager.isSystemCustomized(system),
-    };
-  }, [positionManager]);
-
-  const getAffectedPositions = useCallback((
-    operation: 'current' | 'all' | 'formation' | 'system',
-    system: SystemType,
-    rotation?: number,
-    formation?: FormationType
-  ): string[] => {
-    const affected: string[] = [];
-    const systemPositions = positionManager.positions[system] || {};
-    
-    switch (operation) {
-      case 'current':
-        if (rotation !== undefined && formation !== undefined) {
-          const rotationData = systemPositions[rotation];
-          if (rotationData && rotationData[formation]) {
-            affected.push(...Object.keys(rotationData[formation]));
-          }
-        }
-        break;
-        
-      case 'all':
-        if (formation !== undefined) {
-          for (let r = 0; r < 6; r++) {
-            const rotationData = systemPositions[r];
-            if (rotationData && rotationData[formation]) {
-              Object.keys(rotationData[formation]).forEach(playerId => {
-                if (!affected.includes(playerId)) {
-                  affected.push(playerId);
-                }
-              });
-            }
-          }
-        }
-        break;
-        
-      case 'formation':
-        if (formation !== undefined) {
-          for (let r = 0; r < 6; r++) {
-            const rotationData = systemPositions[r];
-            if (rotationData && rotationData[formation]) {
-              Object.keys(rotationData[formation]).forEach(playerId => {
-                if (!affected.includes(`R${r + 1}-${playerId}`)) {
-                  affected.push(`R${r + 1}-${playerId}`);
-                }
-              });
-            }
-          }
-        }
-        break;
-        
-      case 'system':
-        Object.entries(systemPositions).forEach(([rotationStr, rotationData]) => {
-          if (rotationData) {
-            Object.entries(rotationData).forEach(([formationType, formationData]) => {
-              if (formationData) {
-                Object.keys(formationData).forEach(playerId => {
-                  const key = `${formationType}-R${parseInt(rotationStr) + 1}-${playerId}`;
-                  if (!affected.includes(key)) {
-                    affected.push(key);
-                  }
-                });
-              }
-            });
-          }
         });
-        break;
-    }
-    
-    return affected.sort();
-  }, [positionManager.positions]);
+      }
 
-  return useMemo(() => ({
-    // Original position manager functionality
-    ...positionManager,
-    
-    // Enhanced reset operations
-    resetCurrentRotation,
-    resetAllRotations,
-    resetSelectedFormation,
-    resetEntireSystem,
-    
-    // Undo/Redo functionality
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    
-    // Reset capability detection
-    getResetCapabilities,
-    
-    // Batch operations
-    startResetBatch: startBatch,
-    endResetBatch: endBatch,
-    discardResetBatch: discardBatch,
-    
-    // Preview functionality
-    getAffectedPositions,
-  }), [
-    positionManager,
-    resetCurrentRotation,
-    resetAllRotations,
-    resetSelectedFormation,
-    resetEntireSystem,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    getResetCapabilities,
-    startBatch,
-    endBatch,
-    discardBatch,
-    getAffectedPositions,
-  ]);
+      return {
+        totalViolations: validation.violations.length,
+        violationsByType,
+        affectedPlayers: Array.from(affectedPlayers),
+      };
+    },
+    [validateCurrentFormation]
+  );
+
+  // Volleyball rules control
+  const isVolleyballRulesEnabled = useCallback(
+    () => volleyballRulesEnabled,
+    [volleyballRulesEnabled]
+  );
+  const setVolleyballRulesEnabled = useCallback((enabled: boolean) => {
+    setVolleyballRulesEnabledState(enabled);
+  }, []);
+
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(
+    () => ({
+      // Base manager properties and methods
+      ...baseManager,
+
+      // Enhanced volleyball rules methods
+      validateCurrentFormation,
+      getConstraintsForPlayer,
+      validatePositionWithRules,
+      setPositionWithValidation,
+      setFormationPositionsWithValidation,
+      isVolleyballRulesEnabled,
+      setVolleyballRulesEnabled,
+      getVolleyballValidationSummary,
+    }),
+    [
+      baseManager,
+      validateCurrentFormation,
+      getConstraintsForPlayer,
+      validatePositionWithRules,
+      setPositionWithValidation,
+      setFormationPositionsWithValidation,
+      isVolleyballRulesEnabled,
+      setVolleyballRulesEnabled,
+      getVolleyballValidationSummary,
+    ]
+  );
 }
-
-export type { EnhancedPositionManager, ResetCapabilities, ResetResult };
