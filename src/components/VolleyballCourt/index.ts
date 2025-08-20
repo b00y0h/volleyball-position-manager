@@ -13,6 +13,9 @@ export {
 } from "./VolleyballCourtProvider";
 export { PlayerLayer } from "./PlayerLayer";
 export { ControlsLayer } from "./ControlsLayer";
+export { VolleyballCourtErrorBoundary } from "./VolleyballCourtErrorBoundary";
+export { ValidationLayer } from "./ValidationLayer";
+export { NotificationLayer } from "./NotificationLayer";
 export * from "./controls";
 export { VolleyballCourtRulesIntegration } from "./VolleyballCourtRulesIntegration";
 export * from "./courtCoordinates";

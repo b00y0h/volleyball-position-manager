@@ -1,13 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { VolleyballCourtProps } from "./types";
+import { VolleyballCourtProps, ViolationData, ErrorData } from "./types";
 import {
   VolleyballCourtProvider,
   useVolleyballCourt,
 } from "./VolleyballCourtProvider";
 import { CourtVisualization } from "./CourtVisualization";
 import { calculateCourtDimensions } from "./courtCoordinates";
+import { VolleyballCourtErrorBoundary } from "./VolleyballCourtErrorBoundary";
+import { ValidationLayer } from "./ValidationLayer";
+import { NotificationLayer } from "./NotificationLayer";
 
 // Internal component that uses the context
 const VolleyballCourtInternal: React.FC = () => {
@@ -16,6 +19,10 @@ const VolleyballCourtInternal: React.FC = () => {
   // Track hydration to prevent SSR/client mismatch
   const [isHydrated, setIsHydrated] = useState(false);
 
+  // Track errors and violations for notification system
+  const [errors, setErrors] = useState<ErrorData[]>([]);
+  const [violations, setViolations] = useState<ViolationData[]>([]);
+
   // Get window size for responsive court sizing
   const windowSize = useWindowSize();
 
@@ -23,6 +30,33 @@ const VolleyballCourtInternal: React.FC = () => {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  // Convert state violations to ViolationData format
+  useEffect(() => {
+    const violationData: ViolationData[] = state.violations.map(
+      (violation, index) => ({
+        code: `VIOLATION_${index}`,
+        message: violation,
+        affectedPlayers: [], // Would need to be populated by rules engine
+        severity: "error" as const,
+      })
+    );
+    setViolations(violationData);
+  }, [state.violations]);
+
+  // Handle errors from state
+  useEffect(() => {
+    if (state.error) {
+      const errorData: ErrorData = {
+        type: "unknown",
+        message: state.error,
+        details: null,
+      };
+      setErrors([errorData]);
+    } else {
+      setErrors([]);
+    }
+  }, [state.error]);
 
   // Calculate responsive court dimensions
   const courtDimensions = useMemo(() => {
@@ -121,6 +155,15 @@ const VolleyballCourtInternal: React.FC = () => {
         className="absolute inset-0"
       />
 
+      {/* Validation Layer - Shows rule violations */}
+      {config.validation?.showViolationDetails && violations.length > 0 && (
+        <ValidationLayer
+          violations={violations}
+          showDetails={config.validation.showViolationDetails}
+          onDismiss={() => setViolations([])}
+        />
+      )}
+
       {/* Temporary overlay with component info */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center bg-white/90 dark:bg-gray-800/90 p-4 rounded-lg shadow-lg">
@@ -137,6 +180,12 @@ const VolleyballCourtInternal: React.FC = () => {
           <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
             Context provider active - State management working
           </div>
+          {violations.length > 0 && (
+            <div className="text-xs text-red-500 mt-1">
+              {violations.length} violation{violations.length > 1 ? "s" : ""}{" "}
+              detected
+            </div>
+          )}
         </div>
       </div>
 
@@ -145,7 +194,7 @@ const VolleyballCourtInternal: React.FC = () => {
         <div className="absolute top-2 left-2 text-xs text-gray-400 bg-white/80 dark:bg-gray-800/80 p-1 rounded">
           Players: {config.players[state.system].length} | ReadOnly:{" "}
           {state.isReadOnly ? "Yes" : "No"} | Theme: {courtTheme} | Violations:{" "}
-          {state.violations.length}
+          {state.violations.length} | Errors: {errors.length}
         </div>
       )}
     </div>
@@ -208,19 +257,19 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
   const mergedConfig = useMemo(() => {
     const baseConfig = config || {};
 
-    // Merge custom players if provided
+    // Merge custom players if provided (with proper type handling)
     if (customPlayers) {
       baseConfig.players = {
-        ...baseConfig.players,
-        ...customPlayers,
+        "5-1": customPlayers["5-1"] || baseConfig.players?.["5-1"] || [],
+        "6-2": customPlayers["6-2"] || baseConfig.players?.["6-2"] || [],
       };
     }
 
-    // Merge custom rotations if provided
+    // Merge custom rotations if provided (with proper type handling)
     if (customRotations) {
       baseConfig.rotations = {
-        ...baseConfig.rotations,
-        ...customRotations,
+        "5-1": customRotations["5-1"] || baseConfig.rotations?.["5-1"] || [],
+        "6-2": customRotations["6-2"] || baseConfig.rotations?.["6-2"] || [],
       };
     }
 
@@ -235,23 +284,42 @@ export const VolleyballCourt: React.FC<VolleyballCourtProps> = ({
     return baseConfig;
   }, [config, customPlayers, customRotations, validationConfig]);
 
+  // Calculate court dimensions for error boundary
+  const errorBoundaryDimensions = useMemo(() => {
+    if (courtDimensions) {
+      return courtDimensions;
+    }
+    // Use base dimensions as fallback
+    return {
+      width: BASE_COURT_WIDTH,
+      height: BASE_COURT_HEIGHT,
+    };
+  }, [courtDimensions]);
+
   return (
     <div className={className} style={style}>
-      <VolleyballCourtProvider
-        config={mergedConfig}
-        readOnly={readOnly}
-        showControls={showControls}
-        enableSharing={enableSharing}
-        enablePersistence={enablePersistence}
-        onPositionChange={onPositionChange}
-        onRotationChange={onRotationChange}
-        onFormationChange={onFormationChange}
-        onViolation={onViolation}
-        onShare={onShare}
-        onError={onError}
-      >
-        <VolleyballCourtInternal />
-      </VolleyballCourtProvider>
+      <NotificationLayer>
+        <VolleyballCourtErrorBoundary
+          onError={onError}
+          courtDimensions={errorBoundaryDimensions}
+        >
+          <VolleyballCourtProvider
+            config={mergedConfig}
+            readOnly={readOnly}
+            showControls={showControls}
+            enableSharing={enableSharing}
+            enablePersistence={enablePersistence}
+            onPositionChange={onPositionChange}
+            onRotationChange={onRotationChange}
+            onFormationChange={onFormationChange}
+            onViolation={onViolation}
+            onShare={onShare}
+            onError={onError}
+          >
+            <VolleyballCourtInternal />
+          </VolleyballCourtProvider>
+        </VolleyballCourtErrorBoundary>
+      </NotificationLayer>
     </div>
   );
 };
