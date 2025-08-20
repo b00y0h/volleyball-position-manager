@@ -570,4 +570,274 @@ describe("OverlapValidator", () => {
       expect(isValid).toBe(true);
     });
   });
+
+  describe("generateDetailedViolations", () => {
+    test("should generate enhanced violations with detailed messaging", () => {
+      const lineup = [
+        createPlayer("1", 1, 7.0, 6.0, true), // Server in back row
+        createPlayer("2", 2, 7.0, 3.0),
+        createPlayer("3", 3, 1.5, 3.0), // MF too far left
+        createPlayer("4", 4, 2.0, 3.0), // LF
+        createPlayer("5", 5, 2.0, 6.0),
+        createPlayer("6", 6, 4.5, 6.0),
+      ];
+
+      const violations = OverlapValidator.generateDetailedViolations(lineup);
+
+      expect(violations).toHaveLength(1);
+      expect(violations[0].code).toBe("ROW_ORDER");
+      expect(violations[0].message).toContain("Row order violation");
+      expect(violations[0].message).toContain("Left Front");
+      expect(violations[0].message).toContain("Middle Front");
+      expect(violations[0].message).toContain("x=2.00m");
+      expect(violations[0].message).toContain("x=1.50m");
+      expect(violations[0].message).toContain("Current separation");
+      expect(violations[0].message).toContain("minimum required");
+      expect(violations[0].coordinates).toBeDefined();
+    });
+
+    test("should enhance front/back violations with distance information", () => {
+      const lineup = [
+        createPlayer("1", 1, 7.0, 6.0, true), // Server
+        createPlayer("2", 2, 7.0, 3.0),
+        createPlayer("3", 3, 4.5, 7.0), // MF behind MB
+        createPlayer("4", 4, 2.0, 3.0),
+        createPlayer("5", 5, 2.0, 6.0),
+        createPlayer("6", 6, 4.5, 6.0), // MB
+      ];
+
+      const violations = OverlapValidator.generateDetailedViolations(lineup);
+
+      expect(violations).toHaveLength(1);
+      expect(violations[0].code).toBe("FRONT_BACK");
+      expect(violations[0].message).toContain("Front/back violation");
+      expect(violations[0].message).toContain("Middle Front");
+      expect(violations[0].message).toContain("Middle Back");
+      expect(violations[0].message).toContain("y=7.00m");
+      expect(violations[0].message).toContain("y=6.00m");
+      expect(violations[0].message).toContain("Current separation");
+    });
+
+    test("should enhance multiple servers violation with player details", () => {
+      const lineup = [
+        createPlayer("1", 1, 7.0, 6.0, true, "Alice"), // Server 1
+        createPlayer("2", 2, 7.0, 3.0),
+        createPlayer("3", 3, 4.5, 3.0),
+        createPlayer("4", 4, 2.0, 3.0),
+        createPlayer("5", 5, 2.0, 6.0),
+        createPlayer("6", 6, 4.5, 6.0, true, "Bob"), // Server 2
+      ];
+
+      const violations = OverlapValidator.generateDetailedViolations(lineup);
+
+      expect(violations).toHaveLength(1);
+      expect(violations[0].code).toBe("MULTIPLE_SERVERS");
+      expect(violations[0].message).toContain("Multiple servers detected");
+      expect(violations[0].message).toContain("Alice (slot 1)");
+      expect(violations[0].message).toContain("Bob (slot 6)");
+      expect(violations[0].coordinates).toBeDefined();
+      expect(violations[0].coordinates![1]).toEqual({ x: 7.0, y: 6.0 });
+      expect(violations[0].coordinates![6]).toEqual({ x: 4.5, y: 6.0 });
+    });
+  });
+
+  describe("getViolationSummary", () => {
+    test("should return correct summary for no violations", () => {
+      const violations: any[] = [];
+      const summary = OverlapValidator.getViolationSummary(violations);
+
+      expect(summary.totalViolations).toBe(0);
+      expect(summary.violationTypes).toEqual({});
+      expect(summary.affectedSlots).toEqual([]);
+      expect(summary.severity).toBe("none");
+    });
+
+    test("should return correct summary for single row order violation", () => {
+      const violations = [
+        {
+          code: "ROW_ORDER",
+          slots: [4, 3],
+          message: "Test violation",
+        },
+      ];
+      const summary = OverlapValidator.getViolationSummary(violations);
+
+      expect(summary.totalViolations).toBe(1);
+      expect(summary.violationTypes).toEqual({ ROW_ORDER: 1 });
+      expect(summary.affectedSlots).toEqual([3, 4]);
+      expect(summary.severity).toBe("minor");
+    });
+
+    test("should return correct summary for multiple violations", () => {
+      const violations = [
+        {
+          code: "ROW_ORDER",
+          slots: [4, 3],
+          message: "Test violation 1",
+        },
+        {
+          code: "FRONT_BACK",
+          slots: [2, 1],
+          message: "Test violation 2",
+        },
+        {
+          code: "ROW_ORDER",
+          slots: [5, 6],
+          message: "Test violation 3",
+        },
+      ];
+      const summary = OverlapValidator.getViolationSummary(violations);
+
+      expect(summary.totalViolations).toBe(3);
+      expect(summary.violationTypes).toEqual({
+        ROW_ORDER: 2,
+        FRONT_BACK: 1,
+      });
+      expect(summary.affectedSlots).toEqual([1, 2, 3, 4, 5, 6]);
+      expect(summary.severity).toBe("critical");
+    });
+
+    test("should classify severity correctly", () => {
+      // Minor: single row order violation
+      let violations = [{ code: "ROW_ORDER", slots: [4, 3], message: "test" }];
+      expect(OverlapValidator.getViolationSummary(violations).severity).toBe(
+        "minor"
+      );
+
+      // Major: two violations
+      violations = [
+        { code: "ROW_ORDER", slots: [4, 3], message: "test" },
+        { code: "FRONT_BACK", slots: [2, 1], message: "test" },
+      ];
+      expect(OverlapValidator.getViolationSummary(violations).severity).toBe(
+        "major"
+      );
+
+      // Major: single non-row-order violation
+      violations = [{ code: "FRONT_BACK", slots: [2, 1], message: "test" }];
+      expect(OverlapValidator.getViolationSummary(violations).severity).toBe(
+        "major"
+      );
+
+      // Critical: more than two violations
+      violations = [
+        { code: "ROW_ORDER", slots: [4, 3], message: "test" },
+        { code: "FRONT_BACK", slots: [2, 1], message: "test" },
+        { code: "MULTIPLE_SERVERS", slots: [1, 6], message: "test" },
+      ];
+      expect(OverlapValidator.getViolationSummary(violations).severity).toBe(
+        "critical"
+      );
+    });
+  });
+
+  describe("generateUserFriendlyMessages", () => {
+    test("should return positive message for no violations", () => {
+      const violations: any[] = [];
+      const messages =
+        OverlapValidator.generateUserFriendlyMessages(violations);
+
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toContain("All players are positioned correctly");
+    });
+
+    test("should return formatted messages for single violation", () => {
+      const violations = [
+        {
+          code: "ROW_ORDER",
+          slots: [4, 3],
+          message: "Left Front must be to the left of Middle Front",
+        },
+      ];
+      const messages =
+        OverlapValidator.generateUserFriendlyMessages(violations);
+
+      expect(messages[0]).toContain("1 positioning violation detected");
+      expect(messages[1]).toContain(
+        "1. Left Front must be to the left of Middle Front"
+      );
+      expect(
+        messages.some((msg) => msg.includes("💡 Tip: Players in the same row"))
+      ).toBe(true);
+    });
+
+    test("should return formatted messages for multiple violations", () => {
+      const violations = [
+        {
+          code: "ROW_ORDER",
+          slots: [4, 3],
+          message: "Row order violation",
+        },
+        {
+          code: "FRONT_BACK",
+          slots: [2, 1],
+          message: "Front/back violation",
+        },
+      ];
+      const messages =
+        OverlapValidator.generateUserFriendlyMessages(violations);
+
+      expect(messages[0]).toContain("2 positioning violations detected");
+      expect(messages[1]).toContain("1. Row order violation");
+      expect(messages[2]).toContain("2. Front/back violation");
+      expect(
+        messages.some((msg) => msg.includes("💡 Tip: Players in the same row"))
+      ).toBe(true);
+      expect(
+        messages.some((msg) => msg.includes("💡 Tip: Front row players"))
+      ).toBe(true);
+    });
+
+    test("should include multiple servers tip when applicable", () => {
+      const violations = [
+        {
+          code: "MULTIPLE_SERVERS",
+          slots: [1, 6],
+          message: "Multiple servers detected",
+        },
+      ];
+      const messages =
+        OverlapValidator.generateUserFriendlyMessages(violations);
+
+      expect(
+        messages.some((msg) =>
+          msg.includes("💡 Tip: Only one player can be designated")
+        )
+      ).toBe(true);
+    });
+
+    test("should include all relevant tips for mixed violations", () => {
+      const violations = [
+        {
+          code: "ROW_ORDER",
+          slots: [4, 3],
+          message: "Row order violation",
+        },
+        {
+          code: "FRONT_BACK",
+          slots: [2, 1],
+          message: "Front/back violation",
+        },
+        {
+          code: "MULTIPLE_SERVERS",
+          slots: [1, 6],
+          message: "Multiple servers",
+        },
+      ];
+      const messages =
+        OverlapValidator.generateUserFriendlyMessages(violations);
+
+      expect(
+        messages.some((msg) => msg.includes("💡 Tip: Players in the same row"))
+      ).toBe(true);
+      expect(
+        messages.some((msg) => msg.includes("💡 Tip: Front row players"))
+      ).toBe(true);
+      expect(
+        messages.some((msg) =>
+          msg.includes("💡 Tip: Only one player can be designated")
+        )
+      ).toBe(true);
+    });
+  });
 });

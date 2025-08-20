@@ -360,6 +360,280 @@ export class OverlapValidator {
   }
 
   /**
+   * Generate detailed violation information with specific violation detection
+   * @param lineup - Array of players to analyze
+   * @returns Array of detailed violations with enhanced messaging
+   */
+  static generateDetailedViolations(lineup: PlayerState[]): Violation[] {
+    const result = this.checkOverlap(lineup);
+    return result.violations.map((violation) =>
+      this.enhanceViolation(violation, lineup)
+    );
+  }
+
+  /**
+   * Enhance a violation with additional context and detailed messaging
+   * @param violation - Base violation to enhance
+   * @param lineup - Full lineup for context
+   * @returns Enhanced violation with detailed information
+   */
+  private static enhanceViolation(
+    violation: Violation,
+    lineup: PlayerState[]
+  ): Violation {
+    const positionMap = new Map<RotationSlot, PlayerState>();
+    lineup.forEach((player) => positionMap.set(player.slot, player));
+
+    switch (violation.code) {
+      case "ROW_ORDER":
+        return this.enhanceRowOrderViolation(violation, positionMap);
+      case "FRONT_BACK":
+        return this.enhanceFrontBackViolation(violation, positionMap);
+      case "MULTIPLE_SERVERS":
+        return this.enhanceMultipleServersViolation(violation, positionMap);
+      case "INVALID_LINEUP":
+        return this.enhanceInvalidLineupViolation(violation, positionMap);
+      default:
+        return violation;
+    }
+  }
+
+  /**
+   * Enhance row order violation with detailed positioning information
+   */
+  private static enhanceRowOrderViolation(
+    violation: Violation,
+    positions: Map<RotationSlot, PlayerState>
+  ): Violation {
+    if (violation.slots.length !== 2) return violation;
+
+    const [slot1, slot2] = violation.slots;
+    const player1 = positions.get(slot1);
+    const player2 = positions.get(slot2);
+
+    if (!player1 || !player2) return violation;
+
+    const getSlotName = (slot: RotationSlot): string => {
+      const names: Record<RotationSlot, string> = {
+        1: "Right Back",
+        2: "Right Front",
+        3: "Middle Front",
+        4: "Left Front",
+        5: "Left Back",
+        6: "Middle Back",
+      };
+      return names[slot];
+    };
+
+    const distance = Math.abs(player1.x - player2.x);
+    const tolerance = 0.03; // 3cm tolerance
+
+    return {
+      ...violation,
+      message: `Row order violation: ${getSlotName(slot1)} (${
+        player1.displayName
+      }) at x=${player1.x.toFixed(2)}m must be to the left of ${getSlotName(
+        slot2
+      )} (${player2.displayName}) at x=${player2.x.toFixed(
+        2
+      )}m. Current separation: ${distance.toFixed(
+        3
+      )}m (minimum required: ${tolerance.toFixed(3)}m)`,
+      coordinates: {
+        [slot1]: { x: player1.x, y: player1.y },
+        [slot2]: { x: player2.x, y: player2.y },
+      },
+    };
+  }
+
+  /**
+   * Enhance front/back violation with detailed positioning information
+   */
+  private static enhanceFrontBackViolation(
+    violation: Violation,
+    positions: Map<RotationSlot, PlayerState>
+  ): Violation {
+    if (violation.slots.length !== 2) return violation;
+
+    const [frontSlot, backSlot] = violation.slots;
+    const frontPlayer = positions.get(frontSlot);
+    const backPlayer = positions.get(backSlot);
+
+    if (!frontPlayer || !backPlayer) return violation;
+
+    const getSlotName = (slot: RotationSlot): string => {
+      const names: Record<RotationSlot, string> = {
+        1: "Right Back",
+        2: "Right Front",
+        3: "Middle Front",
+        4: "Left Front",
+        5: "Left Back",
+        6: "Middle Back",
+      };
+      return names[slot];
+    };
+
+    const distance = backPlayer.y - frontPlayer.y;
+    const tolerance = 0.03; // 3cm tolerance
+
+    return {
+      ...violation,
+      message: `Front/back violation: ${getSlotName(frontSlot)} (${
+        frontPlayer.displayName
+      }) at y=${frontPlayer.y.toFixed(2)}m must be in front of ${getSlotName(
+        backSlot
+      )} (${backPlayer.displayName}) at y=${backPlayer.y.toFixed(
+        2
+      )}m. Current separation: ${distance.toFixed(
+        3
+      )}m (minimum required: ${tolerance.toFixed(3)}m)`,
+      coordinates: {
+        [frontSlot]: { x: frontPlayer.x, y: frontPlayer.y },
+        [backSlot]: { x: backPlayer.x, y: backPlayer.y },
+      },
+    };
+  }
+
+  /**
+   * Enhance multiple servers violation with player details
+   */
+  private static enhanceMultipleServersViolation(
+    violation: Violation,
+    positions: Map<RotationSlot, PlayerState>
+  ): Violation {
+    const serverDetails = violation.slots
+      .map((slot) => {
+        const player = positions.get(slot);
+        return player ? `${player.displayName} (slot ${slot})` : `slot ${slot}`;
+      })
+      .join(", ");
+
+    return {
+      ...violation,
+      message: `Multiple servers detected: ${serverDetails}. Only one player can be designated as the server at serve contact.`,
+      coordinates: violation.slots.reduce((coords, slot) => {
+        const player = positions.get(slot);
+        if (player) {
+          coords[slot] = { x: player.x, y: player.y };
+        }
+        return coords;
+      }, {} as { [slot: number]: { x: number; y: number } }),
+    };
+  }
+
+  /**
+   * Enhance invalid lineup violation with specific details
+   */
+  private static enhanceInvalidLineupViolation(
+    violation: Violation,
+    positions: Map<RotationSlot, PlayerState>
+  ): Violation {
+    // The message is already detailed from the input validation
+    return {
+      ...violation,
+      coordinates: violation.slots.reduce((coords, slot) => {
+        const player = positions.get(slot);
+        if (player) {
+          coords[slot] = { x: player.x, y: player.y };
+        }
+        return coords;
+      }, {} as { [slot: number]: { x: number; y: number } }),
+    };
+  }
+
+  /**
+   * Get violation summary statistics
+   * @param violations - Array of violations to summarize
+   * @returns Summary object with violation counts and affected slots
+   */
+  static getViolationSummary(violations: Violation[]): {
+    totalViolations: number;
+    violationTypes: Record<string, number>;
+    affectedSlots: RotationSlot[];
+    severity: "none" | "minor" | "major" | "critical";
+  } {
+    const violationTypes: Record<string, number> = {};
+    const affectedSlotsSet = new Set<RotationSlot>();
+
+    violations.forEach((violation) => {
+      violationTypes[violation.code] =
+        (violationTypes[violation.code] || 0) + 1;
+      violation.slots.forEach((slot) => affectedSlotsSet.add(slot));
+    });
+
+    const totalViolations = violations.length;
+    let severity: "none" | "minor" | "major" | "critical" = "none";
+
+    if (totalViolations === 0) {
+      severity = "none";
+    } else if (totalViolations === 1 && violations[0].code === "ROW_ORDER") {
+      severity = "minor";
+    } else if (totalViolations <= 2) {
+      severity = "major";
+    } else {
+      severity = "critical";
+    }
+
+    return {
+      totalViolations,
+      violationTypes,
+      affectedSlots: Array.from(affectedSlotsSet).sort(),
+      severity,
+    };
+  }
+
+  /**
+   * Generate user-friendly violation messages for UI display
+   * @param violations - Array of violations
+   * @returns Array of formatted messages for user display
+   */
+  static generateUserFriendlyMessages(violations: Violation[]): string[] {
+    if (violations.length === 0) {
+      return [
+        "All players are positioned correctly according to volleyball overlap rules.",
+      ];
+    }
+
+    const messages: string[] = [];
+    const summary = this.getViolationSummary(violations);
+
+    // Add summary message
+    if (summary.totalViolations === 1) {
+      messages.push("1 positioning violation detected:");
+    } else {
+      messages.push(
+        `${summary.totalViolations} positioning violations detected:`
+      );
+    }
+
+    // Add specific violation messages
+    violations.forEach((violation, index) => {
+      messages.push(`${index + 1}. ${violation.message}`);
+    });
+
+    // Add helpful context
+    if (summary.violationTypes["ROW_ORDER"]) {
+      messages.push(
+        "💡 Tip: Players in the same row must be positioned left to right in their designated order."
+      );
+    }
+
+    if (summary.violationTypes["FRONT_BACK"]) {
+      messages.push(
+        "💡 Tip: Front row players must be positioned closer to the net than their back row counterparts."
+      );
+    }
+
+    if (summary.violationTypes["MULTIPLE_SERVERS"]) {
+      messages.push(
+        "💡 Tip: Only one player can be designated as the server at the moment of serve contact."
+      );
+    }
+
+    return messages;
+  }
+
+  /**
    * Check if a specific position would create violations for a player
    * @param slot - The slot being tested
    * @param testPosition - The position to test
