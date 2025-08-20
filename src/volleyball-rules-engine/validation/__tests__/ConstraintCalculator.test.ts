@@ -474,4 +474,243 @@ describe("ConstraintCalculator", () => {
       expect(serverValid).toBe(true);
     });
   });
+
+  describe("dynamic constraint boundary enforcement", () => {
+    test("should update constraint boundaries when other players move", () => {
+      const positions = new Map<RotationSlot, PlayerState>();
+
+      // Initial formation
+      positions.set(4, createPlayer(4, 2.0, 2.0)); // LF
+      positions.set(3, createPlayer(3, 4.5, 2.0)); // MF
+      positions.set(2, createPlayer(2, 7.0, 2.0)); // RF
+
+      // Get initial bounds for MF
+      const initialBounds = ConstraintCalculator.calculateValidBounds(
+        3,
+        positions,
+        false
+      );
+
+      // Move LF to the right, which should tighten MF's left constraint
+      positions.set(4, createPlayer(4, 3.0, 2.0)); // LF moved right
+
+      // Get updated bounds for MF
+      const updatedBounds = ConstraintCalculator.calculateValidBounds(
+        3,
+        positions,
+        false
+      );
+
+      // MF's minimum X should increase (more restrictive)
+      expect(updatedBounds.minX).toBeGreaterThan(initialBounds.minX);
+      expect(updatedBounds.constraintReasons).toContain(
+        "Must be right of LF (slot 4)"
+      );
+    });
+
+    test("should handle multiple overlapping constraints with most restrictive wins", () => {
+      const positions = new Map<RotationSlot, PlayerState>();
+
+      // Create a scenario where MF has constraints from both neighbors and counterpart
+      positions.set(4, createPlayer(4, 3.5, 2.0)); // LF close to center
+      positions.set(3, createPlayer(3, 4.5, 2.0)); // MF in middle
+      positions.set(2, createPlayer(2, 5.5, 2.0)); // RF close to center
+      positions.set(6, createPlayer(6, 4.5, 3.0)); // MB close to front
+
+      const bounds = ConstraintCalculator.calculateValidBounds(
+        3,
+        positions,
+        false
+      );
+
+      // Should have multiple constraints
+      expect(bounds.constraintReasons.length).toBeGreaterThan(1);
+      expect(bounds.constraintReasons).toContain(
+        "Must be right of LF (slot 4)"
+      );
+      expect(bounds.constraintReasons).toContain("Must be left of RF (slot 2)");
+      expect(bounds.constraintReasons).toContain(
+        "Must be in front of MB (slot 6)"
+      );
+
+      // Bounds should be the most restrictive
+      expect(bounds.minX).toBeGreaterThanOrEqual(
+        3.5 + COORDINATE_SYSTEM.TOLERANCE
+      );
+      expect(bounds.maxX).toBeLessThanOrEqual(
+        5.5 - COORDINATE_SYSTEM.TOLERANCE
+      );
+      expect(bounds.maxY).toBeLessThanOrEqual(
+        3.0 - COORDINATE_SYSTEM.TOLERANCE
+      );
+    });
+
+    test("should detect and resolve constraint conflicts", () => {
+      const positions = new Map<RotationSlot, PlayerState>();
+
+      // Create impossible constraint scenario where neighbors are in wrong order
+      positions.set(4, createPlayer(4, 6.0, 2.0)); // LF to the right
+      positions.set(3, createPlayer(3, 4.5, 2.0)); // MF in middle
+      positions.set(2, createPlayer(2, 3.0, 2.0)); // RF to the left
+
+      const bounds = ConstraintCalculator.calculateValidBounds(
+        3,
+        positions,
+        false
+      );
+
+      // Should detect conflicting constraints
+      expect(bounds.constraintReasons).toContain(
+        "Conflicting constraints detected"
+      );
+
+      // Should resolve conflict by using midpoint
+      expect(bounds.minX).toBeCloseTo(bounds.maxX, 2);
+    });
+
+    test("should provide visual feedback data for constraint boundaries", () => {
+      const positions = new Map<RotationSlot, PlayerState>();
+
+      positions.set(4, createPlayer(4, 2.0, 2.0)); // LF
+      positions.set(3, createPlayer(3, 4.5, 2.0)); // MF
+      positions.set(2, createPlayer(2, 7.0, 2.0)); // RF
+      positions.set(6, createPlayer(6, 4.5, 6.0)); // MB
+
+      const bounds = ConstraintCalculator.calculateValidBounds(
+        3,
+        positions,
+        false
+      );
+
+      // Should provide clear min/max values for UI
+      expect(typeof bounds.minX).toBe("number");
+      expect(typeof bounds.maxX).toBe("number");
+      expect(typeof bounds.minY).toBe("number");
+      expect(typeof bounds.maxY).toBe("number");
+
+      // Should be within court bounds
+      expect(bounds.minX).toBeGreaterThanOrEqual(
+        COORDINATE_SYSTEM.LEFT_SIDELINE_X
+      );
+      expect(bounds.maxX).toBeLessThanOrEqual(
+        COORDINATE_SYSTEM.RIGHT_SIDELINE_X
+      );
+      expect(bounds.minY).toBeGreaterThanOrEqual(COORDINATE_SYSTEM.NET_Y);
+      expect(bounds.maxY).toBeLessThanOrEqual(COORDINATE_SYSTEM.ENDLINE_Y);
+    });
+
+    test("should track constraint reasons for user feedback", () => {
+      const positions = new Map<RotationSlot, PlayerState>();
+
+      positions.set(4, createPlayer(4, 2.0, 2.0)); // LF
+      positions.set(3, createPlayer(3, 4.5, 2.0)); // MF
+      positions.set(2, createPlayer(2, 7.0, 2.0)); // RF
+      positions.set(6, createPlayer(6, 4.5, 6.0)); // MB
+
+      const bounds = ConstraintCalculator.calculateValidBounds(
+        3,
+        positions,
+        false
+      );
+
+      // Should provide human-readable constraint reasons
+      expect(bounds.constraintReasons).toBeInstanceOf(Array);
+      expect(bounds.constraintReasons.length).toBeGreaterThan(0);
+
+      // Each reason should be a string
+      bounds.constraintReasons.forEach((reason) => {
+        expect(typeof reason).toBe("string");
+        expect(reason.length).toBeGreaterThan(0);
+      });
+
+      // Should include specific constraint information
+      expect(
+        bounds.constraintReasons.some((reason) => reason.includes("slot"))
+      ).toBe(true);
+    });
+
+    test("should handle dynamic updates during multi-player movement", () => {
+      const positions = new Map<RotationSlot, PlayerState>();
+
+      // Initial tight formation
+      positions.set(4, createPlayer(4, 2.0, 2.0)); // LF
+      positions.set(3, createPlayer(3, 3.0, 2.0)); // MF
+      positions.set(2, createPlayer(2, 4.0, 2.0)); // RF
+
+      // Simulate moving multiple players
+      const scenarios = [
+        // Move LF right - should tighten MF's left constraint
+        { slot: 4 as RotationSlot, newPos: { x: 2.5, y: 2.0 } },
+        // Move RF left - should tighten MF's right constraint
+        { slot: 2 as RotationSlot, newPos: { x: 3.5, y: 2.0 } },
+      ];
+
+      scenarios.forEach((scenario) => {
+        // Update position
+        const player = positions.get(scenario.slot)!;
+        positions.set(scenario.slot, {
+          ...player,
+          x: scenario.newPos.x,
+          y: scenario.newPos.y,
+        });
+
+        // Check that MF's bounds are updated
+        const bounds = ConstraintCalculator.calculateValidBounds(
+          3,
+          positions,
+          false
+        );
+
+        // Should still be constrained
+        expect(bounds.isConstrained).toBe(true);
+
+        // Should have valid bounds
+        expect(bounds.minX).toBeLessThanOrEqual(bounds.maxX);
+        expect(bounds.minY).toBeLessThanOrEqual(bounds.maxY);
+
+        // Position should be valid within bounds
+        const currentMF = positions.get(3)!;
+        if (bounds.minX <= bounds.maxX && bounds.minY <= bounds.maxY) {
+          expect(currentMF.x).toBeGreaterThanOrEqual(bounds.minX - 0.001);
+          expect(currentMF.x).toBeLessThanOrEqual(bounds.maxX + 0.001);
+          expect(currentMF.y).toBeGreaterThanOrEqual(bounds.minY - 0.001);
+          expect(currentMF.y).toBeLessThanOrEqual(bounds.maxY + 0.001);
+        }
+      });
+    });
+
+    test("should maintain constraint consistency across formation changes", () => {
+      const positions = new Map<RotationSlot, PlayerState>();
+
+      // Start with standard formation
+      positions.set(1, createPlayer(1, 7.5, 6.0)); // RB
+      positions.set(2, createPlayer(2, 7.5, 2.0)); // RF
+      positions.set(3, createPlayer(3, 4.5, 2.0)); // MF
+      positions.set(4, createPlayer(4, 1.5, 2.0)); // LF
+      positions.set(5, createPlayer(5, 1.5, 6.0)); // LB
+      positions.set(6, createPlayer(6, 4.5, 6.0)); // MB
+
+      // Test each player's constraints
+      for (let slot = 1; slot <= 6; slot++) {
+        const bounds = ConstraintCalculator.calculateValidBounds(
+          slot as RotationSlot,
+          positions,
+          false
+        );
+
+        // Bounds should be valid
+        expect(bounds.minX).toBeLessThanOrEqual(bounds.maxX);
+        expect(bounds.minY).toBeLessThanOrEqual(bounds.maxY);
+
+        // Current position should be valid
+        const isValid = ConstraintCalculator.isPositionValid(
+          slot as RotationSlot,
+          positions.get(slot as RotationSlot)!,
+          positions,
+          false
+        );
+        expect(isValid).toBe(true);
+      }
+    });
+  });
 });
