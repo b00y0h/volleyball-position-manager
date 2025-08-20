@@ -107,7 +107,7 @@ export interface ShareData {
 export interface ErrorData {
   type: "validation" | "storage" | "network" | "unknown";
   message: string;
-  details?: any;
+  details?: unknown;
 }
 
 // Configuration sub-interfaces
@@ -202,7 +202,7 @@ export interface VolleyballCourtState {
   showShareDialog: boolean;
 
   // Position state (managed by useEnhancedPositionManager)
-  positions: any; // Will be typed based on position manager
+  positions: Record<string, PlayerPosition>; // Position data
   isLoading: boolean;
   error: string | null;
 }

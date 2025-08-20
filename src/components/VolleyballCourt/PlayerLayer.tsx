@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { EnhancedDraggablePlayer } from "@/components/EnhancedDraggablePlayer";
 import { DragGuidelines } from "@/components/DragGuidelines";
 import { PlayerLayerProps } from "./types";
-import { VolleyballRulesEngine } from "@/volleyball-rules-engine/VolleyballRulesEngine";
-import { OptimizedConstraintCalculator } from "@/volleyball-rules-engine/validation/OptimizedConstraintCalculator";
-import { StateConverter } from "@/volleyball-rules-engine/utils/StateConverter";
+import {
+  VolleyballCourtRulesIntegration,
+  type PositionValidationContext,
+} from "./VolleyballCourtRulesIntegration";
 import { RotationSlot } from "@/volleyball-rules-engine/types/PlayerState";
 import { useEnhancedPositionManager } from "@/hooks/useEnhancedPositionManager";
 
@@ -47,6 +48,17 @@ export function PlayerLayer({
   // Create position manager instance for validation
   const positionManager = useEnhancedPositionManager();
 
+  // Create rules integration instance
+  const rulesIntegration = useMemo(() => {
+    return new VolleyballCourtRulesIntegration({
+      courtDimensions,
+      enableRealTimeValidation: true,
+      enableConstraintBoundaries: true,
+      enablePositionSnapping: true,
+      serverSlot: 1, // Default server slot
+    });
+  }, [courtDimensions]);
+
   // Calculate visual guidelines for drag operations
   const calculateDragGuidelines = useCallback(
     (draggedPlayerId: string) => {
@@ -65,29 +77,23 @@ export function PlayerLayer({
         }
 
         const slot = parseInt(draggedSlot) as RotationSlot;
+        const isServer = slot === 1; // Default server slot
 
-        // Convert current positions to volleyball states
-        const serverSlot = 1; // Default server slot
-        const volleyballStates = StateConverter.formationToVolleyballStates(
-          positions,
+        // Create validation context
+        const context: PositionValidationContext = {
+          playerId: draggedPlayerId,
+          slot,
+          currentPosition: positions[draggedPlayerId],
+          allPositions: positions,
           rotationMap,
-          serverSlot
-        );
+          system,
+          formation,
+          isServer,
+        };
 
-        // Create position map
-        const positionMap = new Map();
-        volleyballStates.forEach((state) => {
-          positionMap.set(state.slot, state);
-        });
-
-        // Calculate constraints using optimized calculator
-        const isServer = slot === serverSlot;
-        const constraints =
-          OptimizedConstraintCalculator.calculateOptimizedConstraints(
-            slot,
-            positionMap,
-            isServer
-          );
+        // Calculate constraint boundaries using rules integration
+        const boundaries =
+          rulesIntegration.calculateConstraintBoundaries(context);
 
         const horizontalLines: Array<{
           y: number;
@@ -100,66 +106,21 @@ export function PlayerLayer({
           playerId: string;
         }> = [];
 
-        // Add constraint lines based on bounds
-        if (constraints.isConstrained) {
-          // Add horizontal constraint lines (Y boundaries)
-          if (constraints.minY > 0) {
-            horizontalLines.push({
-              y: constraints.minY,
-              label: `Cannot move above this line`,
-              playerId: draggedPlayerId,
-            });
-          }
+        // Convert constraint boundaries to drag guidelines
+        boundaries.horizontalLines.forEach((line) => {
+          horizontalLines.push({
+            y: line.position,
+            label: line.reason,
+            playerId: draggedPlayerId,
+          });
+        });
 
-          if (constraints.maxY < courtDimensions.height) {
-            horizontalLines.push({
-              y: constraints.maxY,
-              label: `Cannot move below this line`,
-              playerId: draggedPlayerId,
-            });
-          }
-
-          // Add vertical constraint lines (X boundaries)
-          if (constraints.minX > 0) {
-            verticalLines.push({
-              x: constraints.minX,
-              label: `Cannot move left of this line`,
-              playerId: draggedPlayerId,
-            });
-          }
-
-          if (constraints.maxX < courtDimensions.width) {
-            verticalLines.push({
-              x: constraints.maxX,
-              label: `Cannot move right of this line`,
-              playerId: draggedPlayerId,
-            });
-          }
-        }
-
-        // Add constraint reasons as additional guidelines
-        constraints.constraintReasons?.forEach((reason, index) => {
-          if (reason.includes("left") || reason.includes("right")) {
-            // This is a horizontal constraint
-            const x = index % 2 === 0 ? constraints.minX : constraints.maxX;
-            if (x > 0 && x < courtDimensions.width) {
-              verticalLines.push({
-                x,
-                label: reason,
-                playerId: draggedPlayerId,
-              });
-            }
-          } else if (reason.includes("front") || reason.includes("back")) {
-            // This is a vertical constraint
-            const y = index % 2 === 0 ? constraints.minY : constraints.maxY;
-            if (y > 0 && y < courtDimensions.height) {
-              horizontalLines.push({
-                y,
-                label: reason,
-                playerId: draggedPlayerId,
-              });
-            }
-          }
+        boundaries.verticalLines.forEach((line) => {
+          verticalLines.push({
+            x: line.position,
+            label: line.reason,
+            playerId: draggedPlayerId,
+          });
         });
 
         return { horizontalLines, verticalLines };
@@ -168,7 +129,14 @@ export function PlayerLayer({
         return { horizontalLines: [], verticalLines: [] };
       }
     },
-    [positions, rotationMap, formation, courtDimensions]
+    [
+      positions,
+      rotationMap,
+      formation,
+      courtDimensions,
+      system,
+      rulesIntegration,
+    ]
   );
 
   // Memoized drag guidelines
@@ -191,40 +159,22 @@ export function PlayerLayer({
         if (!slotEntry) return;
 
         const slot = parseInt(slotEntry[0]) as RotationSlot;
+        const isServer = slot === 1; // Default server slot
 
-        // Convert positions to volleyball states
-        const serverSlot = 1;
-        const volleyballStates = StateConverter.formationToVolleyballStates(
+        // Get drag constraints using rules integration
+        const constraints = rulesIntegration.getDragConstraints(
+          playerId,
+          slot,
           positions,
           rotationMap,
-          serverSlot
+          isServer
         );
 
-        // Create position map
-        const positionMap = new Map();
-        volleyballStates.forEach((state) => {
-          positionMap.set(state.slot, state);
-        });
-
-        // Calculate constraints
-        const isServer = slot === serverSlot;
-        const constraints =
-          OptimizedConstraintCalculator.calculateOptimizedConstraints(
-            slot,
-            positionMap,
-            isServer
-          );
-
         // Store constraints for this player
-        if (constraints.isConstrained) {
+        if (constraints) {
           setDragConstraints((prev) => ({
             ...prev,
-            [playerId]: {
-              minX: Math.max(0, constraints.minX),
-              maxX: Math.min(courtDimensions.width, constraints.maxX),
-              minY: Math.max(0, constraints.minY),
-              maxY: Math.min(courtDimensions.height, constraints.maxY),
-            },
+            [playerId]: constraints,
           }));
         }
 
@@ -234,7 +184,7 @@ export function PlayerLayer({
         onDragStart(playerId);
       }
     },
-    [readOnly, formation, rotationMap, positions, courtDimensions, onDragStart]
+    [readOnly, formation, rotationMap, positions, rulesIntegration, onDragStart]
   );
 
   // Handle drag end with validation
@@ -270,6 +220,7 @@ export function PlayerLayer({
         if (!slotEntry) return;
 
         const slot = parseInt(slotEntry[0]) as RotationSlot;
+        const isServer = slot === 1; // Default server slot
 
         // Create updated positions
         const updatedPositions = {
@@ -282,24 +233,32 @@ export function PlayerLayer({
           },
         };
 
-        // Convert to volleyball states for validation
-        const serverSlot = 1;
-        const volleyballStates = StateConverter.formationToVolleyballStates(
-          updatedPositions,
+        // Create validation context
+        const context: PositionValidationContext = {
+          playerId,
+          slot,
+          currentPosition: {
+            x: newPosition.x,
+            y: newPosition.y,
+            isCustom: true,
+            lastModified: new Date(),
+          },
+          allPositions: updatedPositions,
           rotationMap,
-          serverSlot
-        );
+          system,
+          formation,
+          isServer,
+        };
 
-        // Validate the lineup
+        // Validate using rules integration
         const validationResult =
-          VolleyballRulesEngine.validateLineup(volleyballStates);
+          rulesIntegration.validatePlayerPosition(context);
 
         // Update violation state
-        if (!validationResult.isLegal) {
-          const playerViolations = validationResult.violations
-            .filter((v) => v.slots.includes(slot))
-            .map((v) => v.message);
-
+        if (!validationResult.isValid) {
+          const playerViolations = validationResult.violations.map(
+            (v) => v.message
+          );
           setViolationState((prev) => ({
             ...prev,
             [playerId]: playerViolations,
@@ -328,7 +287,14 @@ export function PlayerLayer({
         });
       }
     },
-    [positions, rotationMap, onPositionChange]
+    [
+      positions,
+      rotationMap,
+      system,
+      formation,
+      rulesIntegration,
+      onPositionChange,
+    ]
   );
 
   // Handle volleyball rule violations
