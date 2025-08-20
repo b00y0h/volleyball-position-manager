@@ -51,6 +51,6 @@ export const COURT_DIMENSIONS = {
   height: 360,
 } as const;
 
-// Player collision detection radius
-export const PLAYER_RADIUS = 18;
-export const MIN_PLAYER_DISTANCE = PLAYER_RADIUS * 2 + 6; // 42px minimum distance
+// Player collision detection radius - increased for better mobile touch targets
+export const PLAYER_RADIUS = 22;
+export const MIN_PLAYER_DISTANCE = PLAYER_RADIUS * 2 + 6; // 50px minimum distance

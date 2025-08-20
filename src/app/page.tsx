@@ -1,7 +1,13 @@
 "use client";
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { usePositionManager } from "@/hooks/usePositionManager";
-import { DraggablePlayer } from "@/components";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import { useEnhancedPositionManager } from "@/hooks/useEnhancedPositionManager";
+import { DraggablePlayer, ResetButton, ResetPreview } from "@/components";
 import { SystemType, FormationType } from "@/types";
 import { URLStateManager } from "@/utils/URLStateManager";
 import { useNotifications } from "@/components/NotificationSystem";
@@ -101,7 +107,10 @@ function scaleCoordinates(
 }
 
 // Function to generate base court coordinates based on dimensions
-function getBaseCoords(courtWidth: number, courtHeight: number): Record<number, { x: number; y: number }> {
+function getBaseCoords(
+  courtWidth: number,
+  courtHeight: number
+): Record<number, { x: number; y: number }> {
   return {
     1: { x: courtWidth * 0.78, y: courtHeight * 0.82 }, // right-back (1)
     2: { x: courtWidth * 0.78, y: courtHeight * 0.42 }, // right-front (2)
@@ -192,7 +201,11 @@ function generateRotationsFrom(baseMap: Record<number, string>) {
 const rotations_5_1 = generateRotationsFrom(baseRotation5_1);
 const rotations_6_2 = generateRotationsFrom(baseRotation6_2);
 
-function getServeReceiveTargets(rotationMap: Record<number, string>, courtWidth: number, courtHeight: number) {
+function getServeReceiveTargets(
+  rotationMap: Record<number, string>,
+  courtWidth: number,
+  courtHeight: number
+) {
   // choose three primary receivers from back-row players in standard preference: 1 (right-back), 6 (mid-back), 5 (left-back)
   const receiverOrder = [1, 6, 5];
   const receivers = receiverOrder.map((pos) => rotationMap[pos]);
@@ -217,16 +230,27 @@ export default function Home() {
     source: "url" | "localStorage" | "default";
     message?: string;
   }>({ loaded: false, source: "default" });
-  
+
   // Track hydration to prevent SSR/client mismatch
   const [isHydrated, setIsHydrated] = useState(false);
+  const [showResetPreview, setShowResetPreview] = useState(false);
+  const [resetPreviewData, setResetPreviewData] = useState<{
+    operation: "current" | "all" | "formation" | "system";
+    system: SystemType;
+    rotation?: number;
+    formation?: FormationType;
+    affectedPositions: string[];
+  } | null>(null);
+
+  // Track URL loading to prevent multiple loads
+  const urlLoadedRef = useRef(false);
 
   // Get window size for responsive court sizing
   const windowSize = useWindowSize();
-  
+
   // Initialize notification system
   const { addNotification } = useNotifications();
-  
+
   // Initialize storage with fallback
   const storage = useStorageWithFallback({
     onError: (error) => {
@@ -247,7 +271,8 @@ export default function Home() {
               addNotification({
                 type: "success",
                 title: "Storage Cleared",
-                message: "All stored data has been cleared. You can continue using the app.",
+                message:
+                  "All stored data has been cleared. You can continue using the app.",
               });
             },
             variant: "secondary",
@@ -264,7 +289,7 @@ export default function Home() {
       });
     },
   });
-  
+
   // Calculate responsive court dimensions, but use base dimensions during SSR
   const courtDimensions = useMemo(() => {
     if (!isHydrated) {
@@ -273,23 +298,30 @@ export default function Home() {
     }
     return calculateCourtDimensions(windowSize.width, windowSize.height);
   }, [windowSize.width, windowSize.height, isHydrated]);
-  
+
   // Initialize enhanced position validator
   const positionValidator = useMemo(() => {
-    return new EnhancedPositionValidator(courtDimensions.courtWidth, courtDimensions.courtHeight);
+    return new EnhancedPositionValidator(
+      courtDimensions.courtWidth,
+      courtDimensions.courtHeight
+    );
   }, [courtDimensions.courtWidth, courtDimensions.courtHeight]);
-  
+
   // Set hydrated flag after component mounts
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
   // Initialize position manager
-  const positionManager = usePositionManager();
+  const positionManager = useEnhancedPositionManager();
 
-  // Check for URL parameters on initial load
+  // Check for URL parameters on initial load (only once)
   useEffect(() => {
     const loadFromURL = async () => {
+      // Prevent multiple loads
+      if (urlLoadedRef.current) return;
+      urlLoadedRef.current = true;
+
       try {
         // Check if URL contains position data
         if (URLStateManager.hasPositionData(window.location.href)) {
@@ -369,14 +401,10 @@ export default function Home() {
     };
 
     // Only run after position manager has finished loading
-    if (!positionManager.isLoading) {
+    if (!positionManager.isLoading && isHydrated && !urlLoadedRef.current) {
       loadFromURL();
     }
-  }, [
-    positionManager.isLoading,
-    positionManager.setFormationPositions,
-    positionManager,
-  ]);
+  }, [positionManager.isLoading, isHydrated]); // Clean dependency array
 
   // Helper function for delays
   const wait = (ms: number) =>
@@ -454,10 +482,17 @@ export default function Home() {
   const rotationMap = rotations[rotationIndex];
 
   // Precompute serve-receive targets for the current rotation
-  const SRtargets = getServeReceiveTargets(rotationMap, courtDimensions.courtWidth, courtDimensions.courtHeight);
-  
+  const SRtargets = getServeReceiveTargets(
+    rotationMap,
+    courtDimensions.courtWidth,
+    courtDimensions.courtHeight
+  );
+
   // Get base coordinates for current court dimensions
-  const baseCoords = getBaseCoords(courtDimensions.courtWidth, courtDimensions.courtHeight);
+  const baseCoords = getBaseCoords(
+    courtDimensions.courtWidth,
+    courtDimensions.courtHeight
+  );
 
   // Drag event handlers with enhanced error handling
   const handleDragStart = useCallback(
@@ -481,7 +516,7 @@ export default function Home() {
     (playerId: string, success: boolean) => {
       try {
         setDraggedPlayer(null);
-        
+
         if (success && !isReadOnly) {
           addNotification({
             type: "success",
@@ -492,7 +527,7 @@ export default function Home() {
         } else if (!success && !isReadOnly) {
           addNotification({
             type: "error",
-            title: "Invalid Position", 
+            title: "Invalid Position",
             message: `Cannot place ${playerId} at this location. Please try a different position.`,
             duration: 4000,
           });
@@ -519,7 +554,7 @@ export default function Home() {
             formation,
             playerId
           );
-          
+
           addNotification({
             type: "info",
             title: "Position Reset",
@@ -535,8 +570,58 @@ export default function Home() {
         }
       }
     },
-    [positionManager, system, rotationIndex, formation, isReadOnly, addNotification]
+    [
+      positionManager,
+      system,
+      rotationIndex,
+      formation,
+      isReadOnly,
+      addNotification,
+    ]
   );
+
+  // Enhanced reset handlers for ResetButton component
+  const handleResetCurrentRotation = useCallback(async () => {
+    return await positionManager.resetCurrentRotation(
+      system,
+      rotationIndex,
+      formation
+    );
+  }, [positionManager, system, rotationIndex, formation]);
+
+  const handleResetAllRotations = useCallback(async () => {
+    return await positionManager.resetAllRotations(system, formation);
+  }, [positionManager, system, formation]);
+
+  const handleResetSelectedFormation = useCallback(async () => {
+    return await positionManager.resetSelectedFormation(system, formation);
+  }, [positionManager, system, formation]);
+
+  const handleResetEntireSystem = useCallback(async () => {
+    return await positionManager.resetEntireSystem(system);
+  }, [positionManager, system]);
+
+  const showResetPreviewDialog = useCallback(
+    (
+      operation: "current" | "all" | "formation" | "system",
+      affectedPositions: string[]
+    ) => {
+      setResetPreviewData({
+        operation,
+        system,
+        rotation: operation === "current" ? rotationIndex : undefined,
+        formation: operation !== "system" ? formation : undefined,
+        affectedPositions,
+      });
+      setShowResetPreview(true);
+    },
+    [system, rotationIndex, formation]
+  );
+
+  const closeResetPreview = useCallback(() => {
+    setShowResetPreview(false);
+    setResetPreviewData(null);
+  }, []);
 
   useEffect(() => {
     // When formation changes, briefly set an animating flag to disable changing rotation during transition
@@ -884,54 +969,41 @@ export default function Home() {
               (● indicates custom positions)
             </div>
 
-            {/* Reset controls */}
+            {/* Enhanced Reset controls */}
             {!isReadOnly && (
-              <div className="flex gap-2">
-                {positionManager.isFormationCustomized(
-                  system,
-                  rotationIndex,
-                  formation
-                ) && (
-                  <button
-                    onClick={() =>
-                      positionManager.resetFormation(
-                        system,
-                        rotationIndex,
-                        formation
-                      )
-                    }
-                    className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded hover:bg-orange-200"
-                    disabled={isAnimating}
-                  >
-                    Reset {formation}
-                  </button>
-                )}
-
-                {positionManager.isRotationCustomized(
-                  system,
-                  rotationIndex
-                ) && (
-                  <button
-                    onClick={() =>
-                      positionManager.resetRotation(system, rotationIndex)
-                    }
-                    className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                    disabled={isAnimating}
-                  >
-                    Reset Rotation {rotationIndex + 1}
-                  </button>
-                )}
-
-                {positionManager.isSystemCustomized(system) && (
-                  <button
-                    onClick={() => positionManager.resetSystem(system)}
-                    className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
-                    disabled={isAnimating}
-                  >
-                    Reset All {system}
-                  </button>
-                )}
-              </div>
+              <ResetButton
+                system={system}
+                rotation={rotationIndex}
+                formation={formation}
+                onResetCurrentRotation={handleResetCurrentRotation}
+                onResetAllRotations={handleResetAllRotations}
+                onResetSelectedFormation={handleResetSelectedFormation}
+                onResetSystem={handleResetEntireSystem}
+                isDisabled={isAnimating}
+                hasCustomizations={{
+                  currentRotation: positionManager.isFormationCustomized(
+                    system,
+                    rotationIndex,
+                    formation
+                  ),
+                  allRotations: positionManager.isSystemCustomized(system),
+                  currentFormation: positionManager.isSystemCustomized(system), // Will be refined
+                  system: positionManager.isSystemCustomized(system),
+                }}
+                canUndo={positionManager.canUndo}
+                canRedo={positionManager.canRedo}
+                onUndo={positionManager.undo}
+                onRedo={positionManager.redo}
+                onShowPreview={showResetPreviewDialog}
+                getAffectedPositions={(operation) =>
+                  positionManager.getAffectedPositions(
+                    operation,
+                    system,
+                    operation === "current" ? rotationIndex : undefined,
+                    operation !== "system" ? formation : undefined
+                  )
+                }
+              />
             )}
           </div>
 
@@ -952,18 +1024,29 @@ export default function Home() {
                 Shared View
               </div>
             )}
-            
+
             <ErrorBoundary
               fallback={(error, resetError) => (
                 <div className="flex flex-col items-center justify-center p-8 bg-red-50 dark:bg-red-900/20 border-2 border-dashed border-red-300 dark:border-red-700 rounded-lg">
-                  <svg className="w-12 h-12 text-red-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-12 h-12 text-red-400 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                   <h3 className="text-lg font-medium text-red-700 dark:text-red-300 mb-2">
                     Court Rendering Error
                   </h3>
                   <p className="text-sm text-red-600 dark:text-red-400 text-center mb-4 max-w-md">
-                    The volleyball court failed to render properly. This might be due to browser compatibility issues.
+                    The volleyball court failed to render properly. This might
+                    be due to browser compatibility issues.
                   </p>
                   <div className="flex gap-2">
                     <button
@@ -983,123 +1066,128 @@ export default function Home() {
               )}
             >
               <svg
-              data-testid="volleyball-court"
-              viewBox={`0 0 ${courtDimensions.courtWidth} ${courtDimensions.courtHeight}`}
-              width="100%"
-              height="auto"
-              style={{
-                cursor: draggedPlayer
-                  ? "grabbing"
-                  : isReadOnly
-                  ? "not-allowed"
-                  : "default",
-                userSelect: "none",
-                opacity: isReadOnly ? 0.9 : 1,
-              }}
-            >
-              <rect
-                x={0}
-                y={0}
-                width={courtDimensions.courtWidth}
-                height={courtDimensions.courtHeight}
-                fill="#f7f7f9"
-                stroke="#ccc"
-                rx={8}
-              />
-              <line
-                x1={0}
-                y1={courtDimensions.courtHeight * 0.12}
-                x2={courtDimensions.courtWidth}
-                y2={courtDimensions.courtHeight * 0.12}
-                stroke="#333"
-                strokeWidth={3}
-              />
-              <line
-                x1={0}
-                y1={courtDimensions.courtHeight * 0.3}
-                x2={courtDimensions.courtWidth}
-                y2={courtDimensions.courtHeight * 0.3}
-                stroke="#aaa"
-                strokeDasharray="6 4"
-              />
+                data-testid="volleyball-court"
+                viewBox={`0 0 ${courtDimensions.courtWidth} ${courtDimensions.courtHeight}`}
+                width="100%"
+                height="auto"
+                style={{
+                  cursor: draggedPlayer
+                    ? "grabbing"
+                    : isReadOnly
+                    ? "not-allowed"
+                    : "default",
+                  userSelect: "none",
+                  opacity: isReadOnly ? 0.9 : 1,
+                }}
+              >
+                <rect
+                  x={0}
+                  y={0}
+                  width={courtDimensions.courtWidth}
+                  height={courtDimensions.courtHeight}
+                  fill="#f7f7f9"
+                  stroke="#ccc"
+                  rx={8}
+                />
+                <line
+                  x1={0}
+                  y1={courtDimensions.courtHeight * 0.12}
+                  x2={courtDimensions.courtWidth}
+                  y2={courtDimensions.courtHeight * 0.12}
+                  stroke="#333"
+                  strokeWidth={3}
+                />
+                <line
+                  x1={0}
+                  y1={courtDimensions.courtHeight * 0.3}
+                  x2={courtDimensions.courtWidth}
+                  y2={courtDimensions.courtHeight * 0.3}
+                  stroke="#aaa"
+                  strokeDasharray="6 4"
+                />
 
-              {/* base position markers */}
-              {Object.entries(baseCoords).map(([pos, c]) => (
-                <g key={`marker-${pos}`}>
-                  <circle cx={c.x} cy={c.y} r={6} fill="#ddd" />
-                  <text x={c.x + 10} y={c.y + 4} fontSize={12} fill="#666">
-                    {pos}
-                  </text>
-                </g>
-              ))}
+                {/* base position markers */}
+                {Object.entries(baseCoords).map(([pos, c]) => (
+                  <g key={`marker-${pos}`}>
+                    <circle cx={c.x} cy={c.y} r={6} fill="#ddd" />
+                    <text x={c.x + 10} y={c.y + 4} fontSize={12} fill="#666">
+                      {pos}
+                    </text>
+                  </g>
+                ))}
 
-              {/* players */}
-              {players.map((p) => {
-                // Get position from position manager (includes custom positions)
-                const position = positionManager.getPosition(
-                  system,
-                  rotationIndex,
-                  formation,
-                  p.id
-                );
+                {/* players */}
+                {players.map((p) => {
+                  // Get position from position manager (includes custom positions)
+                  const position = positionManager.getPosition(
+                    system,
+                    rotationIndex,
+                    formation,
+                    p.id
+                  );
 
-                // Fallback to calculated position if no position manager data
-                let fallbackTarget = { x: -50, y: -50 };
-                const myEntry = Object.entries(rotationMap).find(
-                  ([, v]) => v === p.id
-                );
-                const posNum = myEntry ? Number(myEntry[0]) : null;
+                  // Fallback to calculated position if no position manager data
+                  let fallbackTarget = { x: -50, y: -50 };
+                  const myEntry = Object.entries(rotationMap).find(
+                    ([, v]) => v === p.id
+                  );
+                  const posNum = myEntry ? Number(myEntry[0]) : null;
 
-                if (formation === "rotational") {
-                  if (posNum) fallbackTarget = baseCoords[posNum];
-                } else if (formation === "serveReceive") {
-                  if (SRtargets[p.id]) {
-                    fallbackTarget = SRtargets[p.id];
-                  } else if (posNum) {
-                    fallbackTarget = { ...baseCoords[posNum] };
-                    if (posNum === 2 || posNum === 3 || posNum === 4)
-                      fallbackTarget.y -= (courtDimensions.courtHeight / BASE_COURT_HEIGHT) * 40;
+                  if (formation === "rotational") {
+                    if (posNum) fallbackTarget = baseCoords[posNum];
+                  } else if (formation === "serveReceive") {
+                    if (SRtargets[p.id]) {
+                      fallbackTarget = SRtargets[p.id];
+                    } else if (posNum) {
+                      fallbackTarget = { ...baseCoords[posNum] };
+                      if (posNum === 2 || posNum === 3 || posNum === 4)
+                        fallbackTarget.y -=
+                          (courtDimensions.courtHeight / BASE_COURT_HEIGHT) *
+                          40;
+                    }
+                  } else if (formation === "base") {
+                    if (posNum) {
+                      fallbackTarget = { ...baseCoords[posNum] };
+                      const scaleX =
+                        courtDimensions.courtWidth / BASE_COURT_WIDTH;
+                      const scaleY =
+                        courtDimensions.courtHeight / BASE_COURT_HEIGHT;
+
+                      if (p.role === "OH") {
+                        if (posNum === 2) fallbackTarget.x += 18 * scaleX;
+                        if (posNum === 4) fallbackTarget.x -= 18 * scaleX;
+                        fallbackTarget.y -= 20 * scaleY;
+                      }
+                      if (p.role === "MB") {
+                        if (posNum === 3) fallbackTarget.y -= 10 * scaleY;
+                      }
+                      if (p.role === "S") {
+                        if (posNum === 1 || posNum === 6)
+                          fallbackTarget.y -= 10 * scaleY;
+                      }
+                    }
                   }
-                } else if (formation === "base") {
-                  if (posNum) {
-                    fallbackTarget = { ...baseCoords[posNum] };
-                    const scaleX = courtDimensions.courtWidth / BASE_COURT_WIDTH;
-                    const scaleY = courtDimensions.courtHeight / BASE_COURT_HEIGHT;
-                    
-                    if (p.role === "OH") {
-                      if (posNum === 2) fallbackTarget.x += 18 * scaleX;
-                      if (posNum === 4) fallbackTarget.x -= 18 * scaleX;
-                      fallbackTarget.y -= 20 * scaleY;
-                    }
-                    if (p.role === "MB") {
-                      if (posNum === 3) fallbackTarget.y -= 10 * scaleY;
-                    }
-                    if (p.role === "S") {
-                      if (posNum === 1 || posNum === 6) fallbackTarget.y -= 10 * scaleY;
-                    }
-                  }
-                }
 
-                const finalPosition = position || fallbackTarget;
+                  const finalPosition = position || fallbackTarget;
 
-                return (
-                  <DraggablePlayer
-                    key={p.id}
-                    player={p}
-                    position={finalPosition}
-                    positionManager={positionManager}
-                    system={system}
-                    rotation={rotationIndex}
-                    formation={formation}
-                    courtDimensions={courtDimensions}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    onResetPosition={handleResetPosition}
-                    isReadOnly={isReadOnly}
-                  />
-                );
-              })}
-            </svg>
+                  return (
+                    <DraggablePlayer
+                      key={p.id}
+                      player={p}
+                      position={finalPosition}
+                      positionManager={positionManager}
+                      system={system}
+                      rotation={rotationIndex}
+                      formation={formation}
+                      courtDimensions={courtDimensions}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      onResetPosition={handleResetPosition}
+                      isReadOnly={isReadOnly}
+                    />
+                  );
+                })}
+              </svg>
             </ErrorBoundary>
           </div>
 
@@ -1235,9 +1323,22 @@ export default function Home() {
           </div>
         </div>
       )}
-      
+
       {/* Browser Compatibility Warning */}
       <BrowserCompatibilityWarning />
+
+      {/* Reset Preview Dialog */}
+      {resetPreviewData && (
+        <ResetPreview
+          isVisible={showResetPreview}
+          operation={resetPreviewData.operation}
+          system={resetPreviewData.system}
+          rotation={resetPreviewData.rotation}
+          formation={resetPreviewData.formation}
+          affectedPositions={resetPreviewData.affectedPositions}
+          onClose={closeResetPreview}
+        />
+      )}
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { motion, PanInfo } from "framer-motion";
 import {
   SystemType,
   FormationType,
-  COURT_DIMENSIONS,
   PLAYER_RADIUS,
 } from "@/types";
 import { PositionManager } from "@/hooks/usePositionManager";
@@ -69,15 +68,16 @@ export function DraggablePlayer({
   // Get visual styling based on customization status and drag state
   const getPlayerStyles = useMemo(() => {
     const baseStyles = {
-      fill: isCustomized ? "#059669" : "#1d4ed8", // Green for custom, blue for default
-      stroke: isCustomized ? "#047857" : "#1e40af",
-      strokeWidth: isCustomized ? 2 : 1,
+      // Higher contrast colors that work well in both light and dark modes
+      fill: isCustomized ? "#10b981" : "#3b82f6", // Brighter green for custom, bright blue for default
+      stroke: isCustomized ? "#065f46" : "#1e40af", // Darker stroke for better contrast
+      strokeWidth: isCustomized ? 2 : 2, // Increased stroke width for better visibility
     };
 
     // Modify styles during drag
     if (dragState.isDragging) {
-      baseStyles.fill = dragState.isValidPosition ? "#10b981" : "#ef4444";
-      baseStyles.stroke = dragState.isValidPosition ? "#047857" : "#dc2626";
+      baseStyles.fill = dragState.isValidPosition ? "#22c55e" : "#f87171"; // Lighter versions for better visibility during drag
+      baseStyles.stroke = dragState.isValidPosition ? "#15803d" : "#b91c1c";
       baseStyles.strokeWidth = 3;
     }
 
@@ -254,17 +254,22 @@ export function DraggablePlayer({
         setShowTooltip(false);
         setShowResetButton(false);
       }}
+      role="button"
+      tabIndex={isReadOnly ? -1 : 0}
+      aria-label={`Player ${player.id} in ${player.role} position. Zone ${player.id}. ${isCustomized ? 'Custom position' : 'Default position'}. ${isReadOnly ? 'Read-only mode' : 'Drag to reposition'}`}
+      aria-describedby={`player-${player.id}-status`}
+      aria-live="polite"
     >
-      {/* Player circle */}
+      {/* Player circle - now 22px radius for better touch targets */}
       <circle
         cx={0}
         cy={0}
-        r={18}
+        r={PLAYER_RADIUS}
         {...getPlayerStyles}
         style={{
           filter: isCustomized
-            ? "drop-shadow(0 2px 4px rgba(0,0,0,0.2))"
-            : "none",
+            ? "drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
+            : "drop-shadow(0 1px 2px rgba(0,0,0,0.2))",
           opacity: isReadOnly ? 0.7 : 1,
         }}
       />
@@ -274,9 +279,9 @@ export function DraggablePlayer({
         <circle
           cx={0}
           cy={0}
-          r={18}
+          r={PLAYER_RADIUS}
           fill="none"
-          stroke="#9333ea"
+          stroke="#8b5cf6"
           strokeWidth={2}
           strokeDasharray="3 3"
           style={{
@@ -285,17 +290,18 @@ export function DraggablePlayer({
         />
       )}
 
-      {/* Player ID text */}
+      {/* Player ID text - larger for better readability */}
       <text
         x={0}
-        y={5}
-        fontSize={10}
+        y={6}
+        fontSize={12}
         textAnchor="middle"
         fill="white"
         style={{
           pointerEvents: "none",
           userSelect: "none",
-          fontWeight: isCustomized ? "bold" : "normal",
+          fontWeight: "bold",
+          textShadow: "0 1px 2px rgba(0,0,0,0.5)",
         }}
       >
         {player.id}
@@ -304,17 +310,33 @@ export function DraggablePlayer({
       {/* Customization indicator */}
       {isCustomized && (
         <circle
-          cx={12}
-          cy={-12}
-          r={4}
-          fill="#fbbf24"
-          stroke="#f59e0b"
-          strokeWidth={1}
+          cx={15}
+          cy={-15}
+          r={5}
+          fill="#fcd34d"
+          stroke="#d97706"
+          strokeWidth={1.5}
           style={{
             pointerEvents: "none",
           }}
         />
       )}
+
+      {/* Hidden status text for screen readers */}
+      <text
+        id={`player-${player.id}-status`}
+        x={0}
+        y={0}
+        style={{
+          opacity: 0,
+          pointerEvents: "none",
+          fontSize: 0,
+        }}
+      >
+        {isCustomized ? 'Custom position' : 'Default position'}
+        {isReadOnly ? ', Read-only mode' : ', Interactive'}
+        {dragState.isDragging ? (dragState.isValidPosition ? ', Valid position' : ', Invalid position') : ''}
+      </text>
 
       {/* Drag feedback indicators */}
       {dragState.isDragging && (
@@ -323,7 +345,7 @@ export function DraggablePlayer({
           <circle
             cx={0}
             cy={0}
-            r={22}
+            r={PLAYER_RADIUS + 4}
             fill="none"
             stroke={dragState.isValidPosition ? "#10b981" : "#ef4444"}
             strokeWidth={2}
@@ -406,9 +428,9 @@ export function DraggablePlayer({
           <g>
             {/* Reset button background */}
             <circle
-              cx={20}
-              cy={-20}
-              r={8}
+              cx={24}
+              cy={-24}
+              r={10}
               fill="rgba(239, 68, 68, 0.9)"
               stroke="rgba(220, 38, 38, 1)"
               strokeWidth={1}
@@ -419,12 +441,15 @@ export function DraggablePlayer({
                 e.stopPropagation();
                 onResetPosition(player.id);
               }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Reset player ${player.id} to default position`}
             />
             {/* Reset icon (×) */}
             <text
-              x={20}
-              y={-16}
-              fontSize={10}
+              x={24}
+              y={-19}
+              fontSize={12}
               textAnchor="middle"
               fill="white"
               style={{

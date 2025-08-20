@@ -35,8 +35,8 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
 }));
 
 // Mock requestAnimationFrame and cancelAnimationFrame
-global.requestAnimationFrame = vi.fn((cb) => setTimeout(cb, 16));
-global.cancelAnimationFrame = vi.fn((id) => clearTimeout(id));
+global.requestAnimationFrame = vi.fn((cb) => setTimeout(cb, 16)) as unknown as typeof requestAnimationFrame;
+global.cancelAnimationFrame = vi.fn((id) => clearTimeout(id)) as unknown as typeof cancelAnimationFrame;
 
 // Mock URL for testing URL state management
 const mockURL = {
