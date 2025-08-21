@@ -186,7 +186,7 @@ const VolleyballCourtInternal: React.FC = () => {
           />
         )}
 
-      {/* Temporary overlay with component info */}
+        {/* Temporary overlay with component info */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="text-center bg-white/90 dark:bg-gray-800/90 p-4 rounded-lg shadow-lg">
           <div className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
@@ -209,6 +209,8 @@ const VolleyballCourtInternal: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
       </div>
 
       {/* Debug info in development */}

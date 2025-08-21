@@ -22,12 +22,19 @@ export interface VolleyballCourtProps {
   enablePersistence?: boolean;
 
   // Event callbacks
-  onPositionChange?: (positions: PositionData) => void;
-  onRotationChange?: (rotation: number) => void;
-  onFormationChange?: (formation: FormationType) => void;
+  onPositionChange?: (data: PositionData) => void;
+  onRotationChange?: (data: RotationChangeData) => void;
+  onFormationChange?: (data: FormationChangeData) => void;
   onViolation?: (violations: ViolationData[]) => void;
   onShare?: (shareData: ShareData) => void;
   onError?: (error: ErrorData) => void;
+  
+  // Extended callbacks
+  onPlayerDragStart?: (data: PlayerDragData) => void;
+  onPlayerDragEnd?: (data: PlayerDragData) => void;
+  onValidationStateChange?: (data: ValidationStateData) => void;
+  onConfigurationChange?: (data: ConfigurationChangeData) => void;
+  onSystemChange?: (data: SystemChangeData) => void;
 
   // Advanced configuration
   customPlayers?: CustomPlayersConfig;
@@ -113,28 +120,164 @@ export interface PositionData {
   rotation: number;
   formation: FormationType;
   positions: Record<string, PlayerPosition>;
+  timestamp: number;
+  changedPlayers?: string[]; // List of player IDs that changed
+  changeType?: "drag" | "formation-change" | "rotation-change" | "reset" | "manual";
+  metadata?: {
+    previousPositions?: Record<string, PlayerPosition>;
+    draggedPlayerId?: string;
+    validationStatus?: "valid" | "invalid" | "warning";
+  };
 }
 
 // Violation data for callbacks
 export interface ViolationData {
+  id: string; // Unique violation ID
   code: string;
   message: string;
   affectedPlayers: string[];
-  severity: "error" | "warning";
+  severity: "error" | "warning" | "info";
+  timestamp: number;
+  violationType: "positioning" | "rotation" | "formation" | "court-boundary" | "custom";
+  context: {
+    system: SystemType;
+    rotation: number;
+    formation: FormationType;
+    positions: Record<string, PlayerPosition>;
+  };
+  metadata?: {
+    rule?: string;
+    suggestedFix?: string;
+    autoFixAvailable?: boolean;
+    educationalNote?: string;
+  };
 }
 
 // Share data for callbacks
 export interface ShareData {
   url: string;
+  shortUrl?: string;
+  qrCode?: string; // Base64 encoded QR code image
   config: VolleyballCourtConfig;
   positions: PositionData;
+  timestamp: number;
+  shareId?: string; // Unique identifier for this share
+  metadata?: {
+    title?: string;
+    description?: string;
+    tags?: string[];
+    expiresAt?: number;
+    isPublic?: boolean;
+    shareMethod?: "url" | "qr" | "clipboard" | "email" | "social";
+  };
 }
 
 // Error data for callbacks
 export interface ErrorData {
-  type: "validation" | "storage" | "network" | "unknown";
+  id: string; // Unique error ID
+  type: "validation" | "storage" | "network" | "permission" | "configuration" | "unknown";
   message: string;
+  timestamp: number;
+  severity: "low" | "medium" | "high" | "critical";
   details?: unknown;
+  context?: {
+    component?: string;
+    action?: string;
+    state?: Record<string, unknown>;
+  };
+  recovery?: {
+    isRecoverable: boolean;
+    suggestedActions?: string[];
+    autoRecoveryAttempted?: boolean;
+    retryable?: boolean;
+  };
+}
+
+// Extended callback data interfaces
+export interface RotationChangeData {
+  previousRotation: number;
+  newRotation: number;
+  system: SystemType;
+  formation: FormationType;
+  timestamp: number;
+  changeType: "manual" | "programmatic" | "animation";
+  metadata?: {
+    triggeredBy?: string; // Component or user action that triggered the change
+    animationDuration?: number;
+  };
+}
+
+export interface FormationChangeData {
+  previousFormation: FormationType;
+  newFormation: FormationType;
+  system: SystemType;
+  rotation: number;
+  timestamp: number;
+  changeType: "manual" | "programmatic";
+  metadata?: {
+    triggeredBy?: string;
+    affectedPlayers?: string[];
+  };
+}
+
+export interface PlayerDragData {
+  playerId: string;
+  playerName: string;
+  playerRole: "S" | "Opp" | "OH" | "MB";
+  startPosition?: PlayerPosition;
+  currentPosition?: PlayerPosition;
+  endPosition?: PlayerPosition;
+  isValid: boolean;
+  violations: ViolationData[];
+  timestamp: number;
+  metadata?: {
+    dragDistance?: number;
+    dragDuration?: number;
+    snapToPosition?: PlayerPosition;
+    constraintsBoundaries?: ConstraintBoundaries;
+  };
+}
+
+export interface ValidationStateData {
+  isValid: boolean;
+  violations: ViolationData[];
+  warnings: ViolationData[];
+  system: SystemType;
+  rotation: number;
+  formation: FormationType;
+  timestamp: number;
+  metadata?: {
+    validationMode?: "real-time" | "on-demand" | "on-change";
+    performanceMetrics?: {
+      validationTime: number;
+      constraintCalculationTime: number;
+    };
+  };
+}
+
+export interface ConfigurationChangeData {
+  changedKeys: string[];
+  previousConfig: Partial<VolleyballCourtConfig>;
+  newConfig: Partial<VolleyballCourtConfig>;
+  timestamp: number;
+  changeType: "user" | "preset" | "programmatic";
+  metadata?: {
+    triggeredBy?: string;
+    affectedComponents?: string[];
+  };
+}
+
+export interface SystemChangeData {
+  previousSystem: SystemType;
+  newSystem: SystemType;
+  timestamp: number;
+  changeType: "manual" | "programmatic";
+  metadata?: {
+    triggeredBy?: string;
+    playersChanged?: boolean;
+    rotationsChanged?: boolean;
+    positionsReset?: boolean;
+  };
 }
 
 // Configuration sub-interfaces

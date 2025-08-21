@@ -24,6 +24,12 @@ import {
   ConstraintBoundaries,
   PlayerDefinition,
   RotationMapping,
+  RotationChangeData,
+  FormationChangeData,
+  PlayerDragData,
+  ValidationStateData,
+  ConfigurationChangeData,
+  SystemChangeData,
 } from "./types";
 import {
   VolleyballCourtPersistenceManager,
@@ -493,7 +499,13 @@ export function VolleyballCourtProvider({
 
   // Callback handlers
   const handlePositionChange = useCallback(
-    (positions: Record<string, PlayerPosition>) => {
+    (
+      positions: Record<string, PlayerPosition>,
+      changeType: PositionData["changeType"] = "manual",
+      changedPlayers?: string[],
+      metadata?: PositionData["metadata"]
+    ) => {
+      const previousPositions = state.positions;
       setState((prev) => ({ ...prev, positions }));
 
       if (onPositionChange) {
@@ -502,42 +514,111 @@ export function VolleyballCourtProvider({
           rotation: state.rotationIndex,
           formation: state.formation,
           positions,
+          timestamp: Date.now(),
+          changedPlayers,
+          changeType,
+          metadata: {
+            ...metadata,
+            previousPositions,
+          },
         };
         onPositionChange(positionData);
       }
     },
-    [state.system, state.rotationIndex, state.formation, onPositionChange]
+    [state.system, state.rotationIndex, state.formation, state.positions, onPositionChange]
   );
 
   const handleRotationChange = useCallback(
-    (rotation: number) => {
+    (
+      rotation: number,
+      changeType: RotationChangeData["changeType"] = "manual",
+      triggeredBy?: string
+    ) => {
+      const previousRotation = state.rotationIndex;
       setRotationIndex(rotation);
-      onRotationChange?.(rotation);
+      
+      if (onRotationChange) {
+        const rotationData: RotationChangeData = {
+          previousRotation,
+          newRotation: rotation,
+          system: state.system,
+          formation: state.formation,
+          timestamp: Date.now(),
+          changeType,
+          metadata: {
+            triggeredBy,
+          },
+        };
+        onRotationChange(rotationData);
+      }
     },
-    [setRotationIndex, onRotationChange]
+    [state.rotationIndex, state.system, state.formation, setRotationIndex, onRotationChange]
   );
 
   const handleFormationChange = useCallback(
-    (formation: FormationType) => {
+    (
+      formation: FormationType,
+      changeType: FormationChangeData["changeType"] = "manual",
+      triggeredBy?: string
+    ) => {
+      const previousFormation = state.formation;
       setFormation(formation);
-      onFormationChange?.(formation);
+      
+      if (onFormationChange) {
+        const formationData: FormationChangeData = {
+          previousFormation,
+          newFormation: formation,
+          system: state.system,
+          rotation: state.rotationIndex,
+          timestamp: Date.now(),
+          changeType,
+          metadata: {
+            triggeredBy,
+          },
+        };
+        onFormationChange(formationData);
+      }
     },
-    [setFormation, onFormationChange]
+    [state.formation, state.system, state.rotationIndex, setFormation, onFormationChange]
   );
 
   const handleViolation = useCallback(
     (violations: ViolationData[]) => {
       const violationMessages = violations.map((v) => v.message);
       setViolations(violationMessages);
-      onViolation?.(violations);
+      
+      // Enhance violations with context if not already present
+      const enhancedViolations = violations.map((violation) => ({
+        ...violation,
+        timestamp: violation.timestamp || Date.now(),
+        context: violation.context || {
+          system: state.system,
+          rotation: state.rotationIndex,
+          formation: state.formation,
+          positions: state.positions,
+        },
+      }));
+      
+      onViolation?.(enhancedViolations);
     },
-    [setViolations, onViolation]
+    [state.system, state.rotationIndex, state.formation, state.positions, setViolations, onViolation]
   );
 
   const handleShare = useCallback(
     (shareData: ShareData) => {
       setShareURL(shareData.url);
-      onShare?.(shareData);
+      
+      // Enhance share data with timestamp if not present
+      const enhancedShareData: ShareData = {
+        ...shareData,
+        timestamp: shareData.timestamp || Date.now(),
+        positions: {
+          ...shareData.positions,
+          timestamp: shareData.positions.timestamp || Date.now(),
+        },
+      };
+      
+      onShare?.(enhancedShareData);
     },
     [setShareURL, onShare]
   );
@@ -545,9 +626,29 @@ export function VolleyballCourtProvider({
   const handleError = useCallback(
     (error: ErrorData) => {
       setError(error.message);
-      onError?.(error);
+      
+      // Enhance error data with additional context if not present
+      const enhancedError: ErrorData = {
+        ...error,
+        id: error.id || `error_${Date.now()}`,
+        timestamp: error.timestamp || Date.now(),
+        severity: error.severity || "medium",
+        context: {
+          ...error.context,
+          component: error.context?.component || "VolleyballCourtProvider",
+          state: {
+            system: state.system,
+            rotation: state.rotationIndex,
+            formation: state.formation,
+            isReadOnly: state.isReadOnly,
+            ...error.context?.state,
+          },
+        },
+      };
+      
+      onError?.(enhancedError);
     },
-    [setError, onError]
+    [state.system, state.rotationIndex, state.formation, state.isReadOnly, setError, onError]
   );
 
   // Persistence methods
