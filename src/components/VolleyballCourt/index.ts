@@ -16,6 +16,14 @@ export { ControlsLayer } from "./ControlsLayer";
 export { VolleyballCourtErrorBoundary } from "./VolleyballCourtErrorBoundary";
 export { ValidationLayer } from "./ValidationLayer";
 export { NotificationLayer } from "./NotificationLayer";
+export { ReadOnlyIndicator } from "./ReadOnlyIndicator";
+export { ConfigurationPanel } from "./ConfigurationPanel";
+export {
+  ConfigurationManager,
+  PlayerCustomization,
+  RotationCustomization,
+} from "./ConfigurationUtils";
+export { VolleyballCourtPersistenceManager } from "./PersistenceManager";
 export * from "./controls";
 export { VolleyballCourtRulesIntegration } from "./VolleyballCourtRulesIntegration";
 export * from "./courtCoordinates";

@@ -29,6 +29,7 @@ import {
   VolleyballCourtPersistenceManager,
   PersistenceState,
 } from "./PersistenceManager";
+import { ConfigurationManager } from "./ConfigurationUtils";
 
 // Context interface
 interface VolleyballCourtContextValue {
@@ -84,20 +85,20 @@ const DEFAULT_CONFIG: Required<VolleyballCourtConfig> = {
   initialFormation: "base",
   players: {
     "5-1": [
-      { id: "S", name: "Setter", role: "S" },
-      { id: "Opp", name: "Opposite", role: "Opp" },
-      { id: "OH1", name: "Outside 1", role: "OH" },
-      { id: "OH2", name: "Outside 2", role: "OH" },
-      { id: "MB1", name: "Middle 1", role: "MB" },
-      { id: "MB2", name: "Middle 2", role: "MB" },
+      { id: "S", name: "Setter", role: "S", number: 1 },
+      { id: "Opp", name: "Opposite", role: "Opp", number: 2 },
+      { id: "OH1", name: "Outside 1", role: "OH", number: 3 },
+      { id: "OH2", name: "Outside 2", role: "OH", number: 4 },
+      { id: "MB1", name: "Middle 1", role: "MB", number: 5 },
+      { id: "MB2", name: "Middle 2", role: "MB", number: 6 },
     ],
     "6-2": [
-      { id: "S1", name: "Setter 1", role: "S" },
-      { id: "S2", name: "Setter 2", role: "S" },
-      { id: "OH1", name: "Outside 1", role: "OH" },
-      { id: "OH2", name: "Outside 2", role: "OH" },
-      { id: "MB1", name: "Middle 1", role: "MB" },
-      { id: "MB2", name: "Middle 2", role: "MB" },
+      { id: "S1", name: "Setter 1", role: "S", number: 1 },
+      { id: "S2", name: "Setter 2", role: "S", number: 2 },
+      { id: "OH1", name: "Outside 1", role: "OH", number: 3 },
+      { id: "OH2", name: "Outside 2", role: "OH", number: 4 },
+      { id: "MB1", name: "Middle 1", role: "MB", number: 5 },
+      { id: "MB2", name: "Middle 2", role: "MB", number: 6 },
     ],
   },
   rotations: {
@@ -125,20 +126,109 @@ const DEFAULT_CONFIG: Required<VolleyballCourtConfig> = {
     showResetButton: true,
     showShareButton: true,
     showAnimateButton: true,
+    showUndoRedoButtons: false,
+    showPositionLockButtons: false,
+    showValidationToggle: false,
+    controlsPosition: "top",
+    controlsStyle: "expanded",
+    customControls: [],
   },
   validation: {
     enableRealTimeValidation: true,
     showConstraintBoundaries: true,
     enablePositionSnapping: true,
     showViolationDetails: true,
+    snapTolerance: 10,
+    constraintLineWidth: 2,
+    constraintLineColor: "#ef4444",
+    violationDisplayDuration: 5000,
+    enableEducationalMessages: true,
+    strictMode: false,
+    customRules: [],
   },
   appearance: {
     theme: "auto",
     courtColor: "#2563eb",
-    playerColors: {},
+    courtBackgroundColor: "#ffffff",
+    lineColor: "#ffffff",
+    netColor: "#000000",
+    playerColors: {
+      S: "#10b981", // Green for setters
+      Opp: "#f59e0b", // Amber for opposite
+      OH: "#3b82f6", // Blue for outside hitters
+      MB: "#ef4444", // Red for middle blockers
+      frontRow: "#1f2937",
+      backRow: "#6b7280",
+      serving: "#fbbf24",
+      dragging: "#8b5cf6",
+      violation: "#dc2626",
+    },
+    playerSize: 1,
     showPlayerNames: true,
     showPositionLabels: true,
+    showPlayerNumbers: false,
+    showCourtGrid: false,
+    showCourtZones: true,
+    customCSS: "",
+    fontFamily: "system-ui, sans-serif",
+    fontSize: {
+      playerNames: 12,
+      positionLabels: 10,
+      violations: 14,
+    },
   },
+  animation: {
+    enableAnimations: true,
+    animationDuration: 300,
+    easing: "ease-out",
+    enableDragAnimations: true,
+    enableFormationTransitions: true,
+    enableRotationAnimations: true,
+    staggerDelay: 50,
+    bounceOnViolation: true,
+    highlightOnHover: true,
+    customTransitions: {},
+  },
+  interaction: {
+    enableDragAndDrop: true,
+    enableKeyboardNavigation: true,
+    enableTouchGestures: true,
+    dragConstraints: "strict",
+    multiSelectEnabled: false,
+    contextMenuEnabled: false,
+    doubleClickAction: "reset",
+  },
+  accessibility: {
+    enableScreenReader: true,
+    enableKeyboardNavigation: true,
+    enableHighContrast: false,
+    announceViolations: true,
+    customAriaLabels: {},
+    focusIndicatorStyle: "outline",
+  },
+  performance: {
+    enableVirtualization: false,
+    debounceValidation: 100,
+    throttleDragUpdates: 16,
+    enableLazyLoading: false,
+    maxHistorySize: 50,
+    enableCaching: true,
+  },
+  localization: {
+    language: "en",
+    translations: {},
+    dateFormat: "MM/dd/yyyy",
+    numberFormat: "en-US",
+    rtlSupport: false,
+  },
+  export: {
+    enableImageExport: true,
+    enableDataExport: true,
+    exportFormats: ["png", "svg", "json"],
+    defaultImageSize: { width: 800, height: 600 },
+    includeMetadata: true,
+  },
+  custom: {},
 };
 
 // Provider props
@@ -172,34 +262,40 @@ export function VolleyballCourtProvider({
   onShare,
   onError,
 }: VolleyballCourtProviderProps) {
-  // Merge user config with defaults
-  const config = useMemo(
-    () => ({
-      ...DEFAULT_CONFIG,
-      ...userConfig,
-      players: {
-        ...DEFAULT_CONFIG.players,
-        ...userConfig?.players,
-      },
-      rotations: {
-        ...DEFAULT_CONFIG.rotations,
-        ...userConfig?.rotations,
-      },
-      controls: {
-        ...DEFAULT_CONFIG.controls,
-        ...userConfig?.controls,
-      },
-      validation: {
-        ...DEFAULT_CONFIG.validation,
-        ...userConfig?.validation,
-      },
-      appearance: {
-        ...DEFAULT_CONFIG.appearance,
-        ...userConfig?.appearance,
-      },
-    }),
-    [userConfig]
-  );
+  // Merge user config with defaults using ConfigurationManager
+  const config = useMemo(() => {
+    const mergedConfig = ConfigurationManager.mergeConfigurations(
+      DEFAULT_CONFIG,
+      userConfig
+    );
+
+    // Validate the merged configuration
+    const validation = ConfigurationManager.validateConfig(mergedConfig);
+
+    if (!validation.isValid) {
+      console.warn(
+        "VolleyballCourt configuration validation errors:",
+        validation.errors
+      );
+      // In development, throw an error for invalid configuration
+      if (process.env.NODE_ENV === "development") {
+        throw new Error(
+          `Invalid VolleyballCourt configuration: ${validation.errors.join(
+            ", "
+          )}`
+        );
+      }
+    }
+
+    if (validation.warnings.length > 0) {
+      console.warn(
+        "VolleyballCourt configuration warnings:",
+        validation.warnings
+      );
+    }
+
+    return mergedConfig;
+  }, [userConfig]);
 
   // Initialize position manager
   const positionManager = useEnhancedPositionManager();

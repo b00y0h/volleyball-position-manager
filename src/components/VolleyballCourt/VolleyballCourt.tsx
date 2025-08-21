@@ -12,8 +12,8 @@ import { VolleyballCourtErrorBoundary } from "./VolleyballCourtErrorBoundary";
 import { ValidationLayer } from "./ValidationLayer";
 import { NotificationLayer } from "./NotificationLayer";
 import { ReadOnlyIndicator } from "./ReadOnlyIndicator";
-import style from "styled-jsx/style";
-import style from "styled-jsx/style";
+import { ConfigurationManager } from "./ConfigurationUtils";
+
 
 // Internal component that uses the context
 const VolleyballCourtInternal: React.FC = () => {

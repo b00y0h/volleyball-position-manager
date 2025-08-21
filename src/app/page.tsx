@@ -7,7 +7,12 @@ import React, {
   useRef,
 } from "react";
 import { useEnhancedPositionManager } from "@/hooks/useEnhancedPositionManager";
-import { DraggablePlayer, DragGuidelines, ResetButton, ResetPreview } from "@/components";
+import {
+  DraggablePlayer,
+  DragGuidelines,
+  ResetButton,
+  ResetPreview,
+} from "@/components";
 import { SystemType, FormationType, PlayerPosition } from "@/types";
 import { URLStateManager } from "@/utils/URLStateManager";
 import { useNotifications } from "@/components/NotificationSystem";
@@ -223,7 +228,9 @@ export default function Home() {
   const [formation, setFormation] = useState<FormationType>("rotational");
   const [isAnimating, setIsAnimating] = useState(false);
   const [draggedPlayer, setDraggedPlayer] = useState<string | null>(null);
-  const [volleyballViolations, setVolleyballViolations] = useState<string[]>([]);
+  const [volleyballViolations, setVolleyballViolations] = useState<string[]>(
+    []
+  );
   const [isReadOnly, setIsReadOnly] = useState(false);
   const [shareURL, setShareURL] = useState<string>("");
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -332,15 +339,31 @@ export default function Home() {
     }
 
     try {
-      const allPositions = positionManager.getAllPositions(system, rotationIndex, formation) as Record<string, PlayerPosition>;
+      const allPositions = positionManager.getAllPositions(
+        system,
+        rotationIndex,
+        formation
+      ) as Record<string, PlayerPosition>;
       const rotations = system === "5-1" ? rotations_5_1 : rotations_6_2;
       const rotationMap = rotations[rotationIndex];
-      return volleyballValidator.getVisualConstraints(draggedPlayer, allPositions, formation, rotationMap);
+      return volleyballValidator.getVisualConstraints(
+        draggedPlayer,
+        allPositions,
+        formation,
+        rotationMap
+      );
     } catch (error) {
       console.warn("Failed to calculate visual guidelines:", error);
       return { horizontalLines: [], verticalLines: [] };
     }
-  }, [draggedPlayer, formation, positionManager, system, rotationIndex, volleyballValidator]);
+  }, [
+    draggedPlayer,
+    formation,
+    positionManager,
+    system,
+    rotationIndex,
+    volleyballValidator,
+  ]);
 
   // Check for URL parameters on initial load (only once)
   useEffect(() => {
