@@ -88,7 +88,7 @@
   - Write unit tests for all configuration options and customization features
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 6.1, 6.2, 6.3, 6.6_
 
-- [ ] 10. Create callback system for external integration
+- [x] 10. Create callback system for external integration
 
   - Implement onPositionChange callback with detailed position data
   - Add onRotationChange and onFormationChange callbacks for state synchronization
@@ -98,7 +98,7 @@
   - Write unit tests for all callback functionality and data formats
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6_
 
-- [ ] 11. Optimize for npm package distribution
+- [x] 11. Optimize for npm package distribution
 
   - Create package-ready export structure with clear public API
   - Minimize external dependencies and document peer dependencies
@@ -108,7 +108,7 @@
   - Write unit tests for package exports and dependency management
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6_
 
-- [ ] 12. Refactor main page to use new component
+- [x] 12. Refactor main page to use new component
 
   - Replace inline volleyball court implementation in src/app/page.tsx with VolleyballCourt component
   - Create configuration object that matches current page functionality exactly

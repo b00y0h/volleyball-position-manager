@@ -251,7 +251,7 @@ describe("AdvancedConfiguration", () => {
         enableVirtualization: true,
       },
       validation: {
-        bounceOnViolation: true,
+        enableRealTimeValidation: true,
       },
     };
 

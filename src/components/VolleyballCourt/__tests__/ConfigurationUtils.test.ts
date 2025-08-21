@@ -212,7 +212,7 @@ describe("ConfigurationManager", () => {
     it("should detect missing positions in rotations", () => {
       const invalidRotations = {
         "5-1": [
-          { 1: "S", 2: "MB1", 3: "Opp", 4: "MB2", 5: "OH1" }, // Missing position 6
+          { 1: "S", 2: "MB1", 3: "Opp", 4: "MB2", 5: "OH1" } as any, // Missing position 6
           { 1: "OH2", 2: "S", 3: "MB1", 4: "Opp", 5: "MB2", 6: "OH1" },
           { 1: "OH1", 2: "OH2", 3: "S", 4: "MB1", 5: "Opp", 6: "MB2" },
           { 1: "MB2", 2: "OH1", 3: "OH2", 4: "S", 5: "MB1", 6: "Opp" },
@@ -310,6 +310,7 @@ describe("ConfigurationManager", () => {
         initialSystem: "6-2" as SystemType,
         players: {
           "5-1": [{ id: "S", name: "Custom Setter", role: "S" as const }],
+          "6-2": [],
         },
         appearance: {
           courtColor: "#red",

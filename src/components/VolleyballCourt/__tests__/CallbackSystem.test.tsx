@@ -473,16 +473,16 @@ describe("VolleyballCourt Callback System", () => {
         playerId: "S",
         playerName: "Setter",
         playerRole: "S",
-        startPosition: { x: 100, y: 100, isCustom: false, lastModified: Date.now() },
-        currentPosition: { x: 120, y: 110, isCustom: true, lastModified: Date.now() },
-        endPosition: { x: 125, y: 115, isCustom: true, lastModified: Date.now() },
+        startPosition: { x: 100, y: 100, isCustom: false, lastModified: new Date() },
+        currentPosition: { x: 120, y: 110, isCustom: true, lastModified: new Date() },
+        endPosition: { x: 125, y: 115, isCustom: true, lastModified: new Date() },
         isValid: true,
         violations: [],
         timestamp: Date.now(),
         metadata: {
           dragDistance: 25.5,
           dragDuration: 1500,
-          snapToPosition: { x: 125, y: 115, isCustom: true, lastModified: Date.now() },
+          snapToPosition: { x: 125, y: 115, isCustom: true, lastModified: new Date() },
         },
       };
 

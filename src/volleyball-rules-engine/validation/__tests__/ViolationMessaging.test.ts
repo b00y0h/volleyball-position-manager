@@ -323,14 +323,14 @@ describe("Violation Messaging and Reporting", () => {
   describe("User-friendly message generation", () => {
     test("should provide contextual tips for each violation type", () => {
       // Test ROW_ORDER tip
-      let violations = [{ code: "ROW_ORDER", slots: [4, 3], message: "test" }];
+      let violations = [{ code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "test" }];
       let messages = OverlapValidator.generateUserFriendlyMessages(violations);
       expect(
         messages.some((msg) => msg.includes("💡 Tip: Players in the same row"))
       ).toBe(true);
 
       // Test FRONT_BACK tip
-      violations = [{ code: "FRONT_BACK", slots: [2, 1], message: "test" }];
+      violations = [{ code: "FRONT_BACK" as const, slots: [2, 1] as RotationSlot[], message: "test" }];
       messages = OverlapValidator.generateUserFriendlyMessages(violations);
       expect(
         messages.some((msg) => msg.includes("💡 Tip: Front row players"))
@@ -338,7 +338,7 @@ describe("Violation Messaging and Reporting", () => {
 
       // Test MULTIPLE_SERVERS tip
       violations = [
-        { code: "MULTIPLE_SERVERS", slots: [1, 6], message: "test" },
+        { code: "MULTIPLE_SERVERS" as const, slots: [1, 6] as RotationSlot[], message: "test" },
       ];
       messages = OverlapValidator.generateUserFriendlyMessages(violations);
       expect(
@@ -351,7 +351,7 @@ describe("Violation Messaging and Reporting", () => {
     test("should format violation counts correctly", () => {
       // Single violation
       let violations = [
-        { code: "ROW_ORDER", slots: [4, 3], message: "Single violation" },
+        { code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "Single violation" },
       ];
       let messages = OverlapValidator.generateUserFriendlyMessages(violations);
       expect(messages[0]).toBe("1 positioning violation detected:");
@@ -359,8 +359,8 @@ describe("Violation Messaging and Reporting", () => {
 
       // Multiple violations
       violations = [
-        { code: "ROW_ORDER", slots: [4, 3], message: "First violation" },
-        { code: "FRONT_BACK", slots: [2, 1], message: "Second violation" },
+        { code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "First violation" },
+        { code: "FRONT_BACK" as const, slots: [2, 1] as RotationSlot[], message: "Second violation" },
       ];
       messages = OverlapValidator.generateUserFriendlyMessages(violations);
       expect(messages[0]).toBe("2 positioning violations detected:");
@@ -393,27 +393,27 @@ describe("Violation Messaging and Reporting", () => {
       expect(summary.severity).toBe("none");
 
       // Minor (single row order)
-      violations = [{ code: "ROW_ORDER", slots: [4, 3], message: "test" }];
+      violations = [{ code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "test" }];
       summary = OverlapValidator.getViolationSummary(violations);
       expect(summary.severity).toBe("minor");
 
       // Major (single non-row-order or two violations)
-      violations = [{ code: "FRONT_BACK", slots: [2, 1], message: "test" }];
+      violations = [{ code: "FRONT_BACK" as const, slots: [2, 1] as RotationSlot[], message: "test" }];
       summary = OverlapValidator.getViolationSummary(violations);
       expect(summary.severity).toBe("major");
 
       violations = [
-        { code: "ROW_ORDER", slots: [4, 3], message: "test" },
-        { code: "ROW_ORDER", slots: [5, 6], message: "test" },
+        { code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "test" },
+        { code: "ROW_ORDER" as const, slots: [5, 6] as RotationSlot[], message: "test" },
       ];
       summary = OverlapValidator.getViolationSummary(violations);
       expect(summary.severity).toBe("major");
 
       // Critical (more than two violations)
       violations = [
-        { code: "ROW_ORDER", slots: [4, 3], message: "test" },
-        { code: "FRONT_BACK", slots: [2, 1], message: "test" },
-        { code: "MULTIPLE_SERVERS", slots: [1, 6], message: "test" },
+        { code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "test" },
+        { code: "FRONT_BACK" as const, slots: [2, 1] as RotationSlot[], message: "test" },
+        { code: "MULTIPLE_SERVERS" as const, slots: [1, 6] as RotationSlot[], message: "test" },
       ];
       summary = OverlapValidator.getViolationSummary(violations);
       expect(summary.severity).toBe("critical");
@@ -421,10 +421,10 @@ describe("Violation Messaging and Reporting", () => {
 
     test("should aggregate violation types correctly", () => {
       const violations = [
-        { code: "ROW_ORDER", slots: [4, 3], message: "test" },
-        { code: "ROW_ORDER", slots: [5, 6], message: "test" },
-        { code: "FRONT_BACK", slots: [2, 1], message: "test" },
-        { code: "MULTIPLE_SERVERS", slots: [1, 6], message: "test" },
+        { code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "test" },
+        { code: "ROW_ORDER" as const, slots: [5, 6] as RotationSlot[], message: "test" },
+        { code: "FRONT_BACK" as const, slots: [2, 1] as RotationSlot[], message: "test" },
+        { code: "MULTIPLE_SERVERS" as const, slots: [1, 6] as RotationSlot[], message: "test" },
       ];
 
       const summary = OverlapValidator.getViolationSummary(violations);

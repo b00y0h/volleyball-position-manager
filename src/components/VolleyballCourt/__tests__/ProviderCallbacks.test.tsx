@@ -19,8 +19,8 @@ import {
 vi.mock("@/hooks/useEnhancedPositionManager", () => ({
   useEnhancedPositionManager: () => ({
     positions: {
-      S: { x: 100, y: 200, isCustom: false, lastModified: Date.now() },
-      OH1: { x: 150, y: 250, isCustom: false, lastModified: Date.now() },
+      S: { x: 100, y: 200, isCustom: false, lastModified: new Date() },
+      OH1: { x: 150, y: 250, isCustom: false, lastModified: new Date() },
     },
     rotationIndex: 0,
     setRotationIndex: vi.fn(),
@@ -37,16 +37,16 @@ vi.mock("@/hooks/useEnhancedPositionManager", () => ({
     setSystem: vi.fn(),
     constraints: { horizontalLines: [], verticalLines: [] },
     getFormationPositions: vi.fn(() => ({
-      S: { x: 100, y: 200, isCustom: false, lastModified: Date.now() },
-      OH1: { x: 150, y: 250, isCustom: false, lastModified: Date.now() },
+      S: { x: 100, y: 200, isCustom: false, lastModified: new Date() },
+      OH1: { x: 150, y: 250, isCustom: false, lastModified: new Date() },
     })),
     resetPositions: vi.fn(),
     updatePlayerPosition: vi.fn(),
   }),
   EnhancedPositionManager: class {
     getFormationPositions = vi.fn(() => ({
-      S: { x: 100, y: 200, isCustom: false, lastModified: Date.now() },
-      OH1: { x: 150, y: 250, isCustom: false, lastModified: Date.now() },
+      S: { x: 100, y: 200, isCustom: false, lastModified: new Date() },
+      OH1: { x: 150, y: 250, isCustom: false, lastModified: new Date() },
     }));
     resetPositions = vi.fn();
     updatePlayerPosition = vi.fn();

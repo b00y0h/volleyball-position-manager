@@ -186,7 +186,7 @@ describe("ControlsLayer", () => {
     const { container } = render(
       <ControlsLayer
         {...defaultProps}
-        controlsConfig={{ className: "custom-class" }}
+        controlsConfig={{ showSystemSelector: true }}
       />
     );
 

@@ -422,7 +422,7 @@ describe("OverlapValidator", () => {
       lineup.forEach((player) => positionMap.set(player.slot, player));
 
       const violation = {
-        code: "ROW_ORDER" as const,
+        code: "ROW_ORDER" as const as const,
         slots: [4, 3] as RotationSlot[],
         message: "Test violation",
         coordinates: {
@@ -449,7 +449,7 @@ describe("OverlapValidator", () => {
       lineup.forEach((player) => positionMap.set(player.slot, player));
 
       const violation = {
-        code: "FRONT_BACK" as const,
+        code: "FRONT_BACK" as const as const,
         slots: [4, 5] as RotationSlot[],
         message: "Test violation",
         coordinates: {
@@ -476,7 +476,7 @@ describe("OverlapValidator", () => {
       lineup.forEach((player) => positionMap.set(player.slot, player));
 
       const violation = {
-        code: "MULTIPLE_SERVERS" as const,
+        code: "MULTIPLE_SERVERS" as const as const,
         slots: [1, 6] as RotationSlot[],
         message: "Multiple servers detected",
       };
@@ -655,8 +655,8 @@ describe("OverlapValidator", () => {
     test("should return correct summary for single row order violation", () => {
       const violations = [
         {
-          code: "ROW_ORDER",
-          slots: [4, 3],
+          code: "ROW_ORDER" as const,
+          slots: [4, 3] as RotationSlot[],
           message: "Test violation",
         },
       ];
@@ -671,18 +671,18 @@ describe("OverlapValidator", () => {
     test("should return correct summary for multiple violations", () => {
       const violations = [
         {
-          code: "ROW_ORDER",
-          slots: [4, 3],
+          code: "ROW_ORDER" as const,
+          slots: [4, 3] as RotationSlot[],
           message: "Test violation 1",
         },
         {
-          code: "FRONT_BACK",
-          slots: [2, 1],
+          code: "FRONT_BACK" as const,
+          slots: [2, 1] as RotationSlot[],
           message: "Test violation 2",
         },
         {
-          code: "ROW_ORDER",
-          slots: [5, 6],
+          code: "ROW_ORDER" as const,
+          slots: [5, 6] as RotationSlot[],
           message: "Test violation 3",
         },
       ];
@@ -699,31 +699,31 @@ describe("OverlapValidator", () => {
 
     test("should classify severity correctly", () => {
       // Minor: single row order violation
-      let violations = [{ code: "ROW_ORDER", slots: [4, 3], message: "test" }];
+      let violations = [{ code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "test" }];
       expect(OverlapValidator.getViolationSummary(violations).severity).toBe(
         "minor"
       );
 
       // Major: two violations
       violations = [
-        { code: "ROW_ORDER", slots: [4, 3], message: "test" },
-        { code: "FRONT_BACK", slots: [2, 1], message: "test" },
+        { code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "test" },
+        { code: "FRONT_BACK" as const, slots: [2, 1] as RotationSlot[], message: "test" },
       ];
       expect(OverlapValidator.getViolationSummary(violations).severity).toBe(
         "major"
       );
 
       // Major: single non-row-order violation
-      violations = [{ code: "FRONT_BACK", slots: [2, 1], message: "test" }];
+      violations = [{ code: "FRONT_BACK" as const, slots: [2, 1] as RotationSlot[], message: "test" }];
       expect(OverlapValidator.getViolationSummary(violations).severity).toBe(
         "major"
       );
 
       // Critical: more than two violations
       violations = [
-        { code: "ROW_ORDER", slots: [4, 3], message: "test" },
-        { code: "FRONT_BACK", slots: [2, 1], message: "test" },
-        { code: "MULTIPLE_SERVERS", slots: [1, 6], message: "test" },
+        { code: "ROW_ORDER" as const, slots: [4, 3] as RotationSlot[], message: "test" },
+        { code: "FRONT_BACK" as const, slots: [2, 1] as RotationSlot[], message: "test" },
+        { code: "MULTIPLE_SERVERS" as const, slots: [1, 6] as RotationSlot[], message: "test" },
       ];
       expect(OverlapValidator.getViolationSummary(violations).severity).toBe(
         "critical"
@@ -744,8 +744,8 @@ describe("OverlapValidator", () => {
     test("should return formatted messages for single violation", () => {
       const violations = [
         {
-          code: "ROW_ORDER",
-          slots: [4, 3],
+          code: "ROW_ORDER" as const,
+          slots: [4, 3] as RotationSlot[],
           message: "Left Front must be to the left of Middle Front",
         },
       ];
@@ -764,13 +764,13 @@ describe("OverlapValidator", () => {
     test("should return formatted messages for multiple violations", () => {
       const violations = [
         {
-          code: "ROW_ORDER",
-          slots: [4, 3],
+          code: "ROW_ORDER" as const,
+          slots: [4, 3] as RotationSlot[],
           message: "Row order violation",
         },
         {
-          code: "FRONT_BACK",
-          slots: [2, 1],
+          code: "FRONT_BACK" as const,
+          slots: [2, 1] as RotationSlot[],
           message: "Front/back violation",
         },
       ];
@@ -791,8 +791,8 @@ describe("OverlapValidator", () => {
     test("should include multiple servers tip when applicable", () => {
       const violations = [
         {
-          code: "MULTIPLE_SERVERS",
-          slots: [1, 6],
+          code: "MULTIPLE_SERVERS" as const,
+          slots: [1, 6] as RotationSlot[],
           message: "Multiple servers detected",
         },
       ];
@@ -809,18 +809,18 @@ describe("OverlapValidator", () => {
     test("should include all relevant tips for mixed violations", () => {
       const violations = [
         {
-          code: "ROW_ORDER",
-          slots: [4, 3],
+          code: "ROW_ORDER" as const,
+          slots: [4, 3] as RotationSlot[],
           message: "Row order violation",
         },
         {
-          code: "FRONT_BACK",
-          slots: [2, 1],
+          code: "FRONT_BACK" as const,
+          slots: [2, 1] as RotationSlot[],
           message: "Front/back violation",
         },
         {
-          code: "MULTIPLE_SERVERS",
-          slots: [1, 6],
+          code: "MULTIPLE_SERVERS" as const,
+          slots: [1, 6] as RotationSlot[],
           message: "Multiple servers",
         },
       ];

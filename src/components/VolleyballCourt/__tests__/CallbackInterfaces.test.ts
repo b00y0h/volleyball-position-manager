@@ -24,8 +24,8 @@ describe("Callback Data Interfaces", () => {
         rotation: 2,
         formation: "base",
         positions: {
-          S: { x: 100, y: 200, isCustom: false, lastModified: Date.now() },
-          OH1: { x: 150, y: 250, isCustom: true, lastModified: Date.now() },
+          S: { x: 100, y: 200, isCustom: false, lastModified: new Date() },
+          OH1: { x: 150, y: 250, isCustom: true, lastModified: new Date() },
         },
         timestamp: Date.now(),
       };
@@ -166,7 +166,7 @@ describe("Callback Data Interfaces", () => {
           rotation: 2,
           formation: "base",
           positions: {
-            S: { x: -10, y: 100, isCustom: true, lastModified: Date.now() },
+            S: { x: -10, y: 100, isCustom: true, lastModified: new Date() },
           },
         },
         metadata: {
@@ -396,16 +396,16 @@ describe("Callback Data Interfaces", () => {
         playerId: "S",
         playerName: "Elite Setter",
         playerRole: "S",
-        startPosition: { x: 100, y: 200, isCustom: false, lastModified: Date.now() },
-        currentPosition: { x: 120, y: 210, isCustom: true, lastModified: Date.now() },
-        endPosition: { x: 125, y: 215, isCustom: true, lastModified: Date.now() },
+        startPosition: { x: 100, y: 200, isCustom: false, lastModified: new Date() },
+        currentPosition: { x: 120, y: 210, isCustom: true, lastModified: new Date() },
+        endPosition: { x: 125, y: 215, isCustom: true, lastModified: new Date() },
         isValid: true,
         violations: [],
         timestamp: Date.now(),
         metadata: {
           dragDistance: 25.5,
           dragDuration: 1200,
-          snapToPosition: { x: 125, y: 215, isCustom: true, lastModified: Date.now() },
+          snapToPosition: { x: 125, y: 215, isCustom: true, lastModified: new Date() },
           constraintsBoundaries: {
             horizontalLines: [],
             verticalLines: [],

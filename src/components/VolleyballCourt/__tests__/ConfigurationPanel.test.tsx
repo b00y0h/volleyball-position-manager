@@ -63,7 +63,6 @@ describe("ConfigurationPanel", () => {
       <ConfigurationPanel
         config={defaultConfig}
         onChange={mockOnChange}
-        onClose={mockOnClose}
       />
     );
 
@@ -83,7 +82,6 @@ describe("ConfigurationPanel", () => {
       <ConfigurationPanel
         config={defaultConfig}
         onChange={mockOnChange}
-        onClose={mockOnClose}
       />
     );
 

@@ -206,7 +206,7 @@ export class OptimizedConstraintCalculator {
 
     // Initialize
     for (const slot of slots) {
-      dependencies.set(slot, this.getConstraintDependencies(slot));
+      dependencies.set(slot, new Set(this.getConstraintDependencies(slot)));
       inDegree.set(slot, 0);
     }
 

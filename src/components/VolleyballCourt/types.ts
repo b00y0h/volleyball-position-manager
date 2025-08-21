@@ -5,6 +5,9 @@
 import React from "react";
 import { SystemType, FormationType, PlayerPosition } from "@/types";
 
+// Re-export types for consistency
+export type { SystemType, FormationType, PlayerPosition };
+
 // Core component props
 export interface VolleyballCourtProps {
   // Configuration
@@ -363,7 +366,7 @@ export interface AppearanceConfig {
 }
 
 export interface PlayerColorConfig {
-  [playerId: string]: string;
+  [playerId: string]: string | undefined;
   // Role-based colors
   S?: string; // Setter
   Opp?: string; // Opposite

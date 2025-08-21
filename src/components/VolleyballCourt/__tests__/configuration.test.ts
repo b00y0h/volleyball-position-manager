@@ -4,7 +4,7 @@ import { VolleyballCourtConfig } from "../types";
 // Import the configuration merging logic (we'll need to export it from the main component)
 // For now, we'll test the logic by recreating it here
 
-const DEFAULT_CONFIG: Required<VolleyballCourtConfig> = {
+const DEFAULT_CONFIG: VolleyballCourtConfig = {
   initialSystem: "5-1",
   initialRotation: 0,
   initialFormation: "rotational",
@@ -72,7 +72,7 @@ const DEFAULT_CONFIG: Required<VolleyballCourtConfig> = {
 
 function mergeConfig(
   userConfig?: VolleyballCourtConfig
-): Required<VolleyballCourtConfig> {
+): VolleyballCourtConfig {
   if (!userConfig) return DEFAULT_CONFIG;
 
   return {
@@ -83,13 +83,13 @@ function mergeConfig(
       userConfig.initialFormation ?? DEFAULT_CONFIG.initialFormation,
 
     players: {
-      "5-1": userConfig.players?.["5-1"] ?? DEFAULT_CONFIG.players["5-1"],
-      "6-2": userConfig.players?.["6-2"] ?? DEFAULT_CONFIG.players["6-2"],
+      "5-1": userConfig.players?.["5-1"] ?? DEFAULT_CONFIG.players!["5-1"],
+      "6-2": userConfig.players?.["6-2"] ?? DEFAULT_CONFIG.players!["6-2"],
     },
 
     rotations: {
-      "5-1": userConfig.rotations?.["5-1"] ?? DEFAULT_CONFIG.rotations["5-1"],
-      "6-2": userConfig.rotations?.["6-2"] ?? DEFAULT_CONFIG.rotations["6-2"],
+      "5-1": userConfig.rotations?.["5-1"] ?? DEFAULT_CONFIG.rotations!["5-1"],
+      "6-2": userConfig.rotations?.["6-2"] ?? DEFAULT_CONFIG.rotations!["6-2"],
     },
 
     controls: {
@@ -124,8 +124,8 @@ describe("Configuration Parsing and Merging", () => {
       const result = mergeConfig();
 
       // 5-1 system should have 6 players
-      expect(result.players["5-1"]).toHaveLength(6);
-      expect(result.players["5-1"].map((p) => p.id)).toEqual([
+      expect(result.players!["5-1"]).toHaveLength(6);
+      expect(result.players!["5-1"].map((p) => p.id)).toEqual([
         "S",
         "Opp",
         "OH1",
@@ -135,8 +135,8 @@ describe("Configuration Parsing and Merging", () => {
       ]);
 
       // 6-2 system should have 6 players
-      expect(result.players["6-2"]).toHaveLength(6);
-      expect(result.players["6-2"].map((p) => p.id)).toEqual([
+      expect(result.players!["6-2"]).toHaveLength(6);
+      expect(result.players!["6-2"].map((p) => p.id)).toEqual([
         "S1",
         "S2",
         "OH1",
@@ -150,17 +150,17 @@ describe("Configuration Parsing and Merging", () => {
       const result = mergeConfig();
 
       // Both systems should have 6 rotations
-      expect(result.rotations["5-1"]).toHaveLength(6);
-      expect(result.rotations["6-2"]).toHaveLength(6);
+      expect(result.rotations!["5-1"]).toHaveLength(6);
+      expect(result.rotations!["6-2"]).toHaveLength(6);
 
       // Each rotation should have positions 1-6
-      result.rotations["5-1"].forEach((rotation) => {
+      result.rotations!["5-1"].forEach((rotation) => {
         expect(Object.keys(rotation).map(Number).sort()).toEqual([
           1, 2, 3, 4, 5, 6,
         ]);
       });
 
-      result.rotations["6-2"].forEach((rotation) => {
+      result.rotations!["6-2"].forEach((rotation) => {
         expect(Object.keys(rotation).map(Number).sort()).toEqual([
           1, 2, 3, 4, 5, 6,
         ]);
@@ -170,29 +170,29 @@ describe("Configuration Parsing and Merging", () => {
     it("should have sensible default control settings", () => {
       const result = mergeConfig();
 
-      expect(result.controls.showSystemSelector).toBe(true);
-      expect(result.controls.showRotationControls).toBe(true);
-      expect(result.controls.showFormationSelector).toBe(true);
-      expect(result.controls.showResetButton).toBe(true);
-      expect(result.controls.showShareButton).toBe(true);
-      expect(result.controls.showAnimateButton).toBe(true);
+      expect(result.controls!.showSystemSelector).toBe(true);
+      expect(result.controls!.showRotationControls).toBe(true);
+      expect(result.controls!.showFormationSelector).toBe(true);
+      expect(result.controls!.showResetButton).toBe(true);
+      expect(result.controls!.showShareButton).toBe(true);
+      expect(result.controls!.showAnimateButton).toBe(true);
     });
 
     it("should have sensible default validation settings", () => {
       const result = mergeConfig();
 
-      expect(result.validation.enableRealTimeValidation).toBe(true);
-      expect(result.validation.showConstraintBoundaries).toBe(true);
-      expect(result.validation.enablePositionSnapping).toBe(true);
-      expect(result.validation.showViolationDetails).toBe(true);
+      expect(result.validation!.enableRealTimeValidation).toBe(true);
+      expect(result.validation!.showConstraintBoundaries).toBe(true);
+      expect(result.validation!.enablePositionSnapping).toBe(true);
+      expect(result.validation!.showViolationDetails).toBe(true);
     });
 
     it("should have sensible default appearance settings", () => {
       const result = mergeConfig();
 
-      expect(result.appearance.theme).toBe("auto");
-      expect(result.appearance.showPlayerNames).toBe(true);
-      expect(result.appearance.showPositionLabels).toBe(false);
+      expect(result.appearance!.theme).toBe("auto");
+      expect(result.appearance!.showPlayerNames).toBe(true);
+      expect(result.appearance!.showPositionLabels).toBe(false);
     });
   });
 
@@ -208,7 +208,7 @@ describe("Configuration Parsing and Merging", () => {
       expect(result.initialSystem).toBe("6-2");
       expect(result.initialRotation).toBe(3);
       expect(result.initialFormation).toBe("rotational"); // Should use default
-      expect(result.players).toEqual(DEFAULT_CONFIG.players); // Should use defaults
+      expect(result.players!).toEqual(DEFAULT_CONFIG.players); // Should use defaults
     });
 
     it("should merge nested configuration objects correctly", () => {
@@ -226,13 +226,13 @@ describe("Configuration Parsing and Merging", () => {
 
       const result = mergeConfig(userConfig);
 
-      expect(result.controls.showSystemSelector).toBe(false);
-      expect(result.controls.showResetButton).toBe(false);
-      expect(result.controls.showRotationControls).toBe(true); // Default
-      expect(result.controls.showFormationSelector).toBe(true); // Default
+      expect(result.controls!.showSystemSelector).toBe(false);
+      expect(result.controls!.showResetButton).toBe(false);
+      expect(result.controls!.showRotationControls).toBe(true); // Default
+      expect(result.controls!.showFormationSelector).toBe(true); // Default
 
-      expect(result.validation.enableRealTimeValidation).toBe(false);
-      expect(result.validation.showConstraintBoundaries).toBe(true); // Default
+      expect(result.validation!.enableRealTimeValidation).toBe(false);
+      expect(result.validation!.showConstraintBoundaries).toBe(true); // Default
     });
 
     it("should handle custom players configuration", () => {
@@ -248,13 +248,14 @@ describe("Configuration Parsing and Merging", () => {
       const userConfig: VolleyballCourtConfig = {
         players: {
           "5-1": customPlayers,
+          "6-2": DEFAULT_CONFIG.players!["6-2"],
         },
       };
 
       const result = mergeConfig(userConfig);
 
-      expect(result.players["5-1"]).toEqual(customPlayers);
-      expect(result.players["6-2"]).toEqual(DEFAULT_CONFIG.players["6-2"]); // Should use default
+      expect(result.players!["5-1"]).toEqual(customPlayers);
+      expect(result.players!["6-2"]).toEqual(DEFAULT_CONFIG.players!["6-2"]); // Should use default
     });
 
     it("should handle custom rotations configuration", () => {
@@ -273,13 +274,14 @@ describe("Configuration Parsing and Merging", () => {
       const userConfig: VolleyballCourtConfig = {
         rotations: {
           "5-1": customRotations,
+          "6-2": DEFAULT_CONFIG.rotations!["6-2"],
         },
       };
 
       const result = mergeConfig(userConfig);
 
-      expect(result.rotations["5-1"]).toEqual(customRotations);
-      expect(result.rotations["6-2"]).toEqual(DEFAULT_CONFIG.rotations["6-2"]); // Should use default
+      expect(result.rotations!["5-1"]).toEqual(customRotations);
+      expect(result.rotations!["6-2"]).toEqual(DEFAULT_CONFIG.rotations!["6-2"]); // Should use default
     });
 
     it("should handle appearance customization", () => {
@@ -298,14 +300,14 @@ describe("Configuration Parsing and Merging", () => {
 
       const result = mergeConfig(userConfig);
 
-      expect(result.appearance.theme).toBe("dark");
-      expect(result.appearance.courtColor).toBe("#2d3748");
-      expect(result.appearance.playerColors).toEqual({
+      expect(result.appearance!.theme).toBe("dark");
+      expect(result.appearance!.courtColor).toBe("#2d3748");
+      expect(result.appearance!.playerColors).toEqual({
         S: "#ff6b6b",
         Opp: "#4ecdc4",
       });
-      expect(result.appearance.showPlayerNames).toBe(false);
-      expect(result.appearance.showPositionLabels).toBe(true);
+      expect(result.appearance!.showPlayerNames).toBe(false);
+      expect(result.appearance!.showPositionLabels).toBe(true);
     });
   });
 
@@ -330,7 +332,7 @@ describe("Configuration Parsing and Merging", () => {
       expect(result.initialSystem).toBe("5-1"); // Should use default
       expect(result.initialRotation).toBe(0); // Should use default
       // The spread operator will include undefined values, so we need to handle this differently
-      expect(result.controls.showSystemSelector).toBe(undefined); // Will be undefined due to spread
+      expect(result.controls!.showSystemSelector).toBe(undefined); // Will be undefined due to spread
     });
 
     it("should validate rotation index bounds", () => {
@@ -355,10 +357,10 @@ describe("Configuration Parsing and Merging", () => {
 
       const result = mergeConfig(userConfig);
 
-      expect(result.controls.showSystemSelector).toBe(false);
-      expect(result.controls.showRotationControls).toBe(true); // Default
-      expect(result.validation).toEqual(DEFAULT_CONFIG.validation); // All defaults
-      expect(result.appearance).toEqual(DEFAULT_CONFIG.appearance); // All defaults
+      expect(result.controls!.showSystemSelector).toBe(false);
+      expect(result.controls!.showRotationControls).toBe(true); // Default
+      expect(result.validation!).toEqual(DEFAULT_CONFIG.validation); // All defaults
+      expect(result.appearance!).toEqual(DEFAULT_CONFIG.appearance); // All defaults
     });
   });
 
@@ -390,11 +392,11 @@ describe("Configuration Parsing and Merging", () => {
     it("should maintain type safety for player roles", () => {
       const result = mergeConfig();
 
-      result.players["5-1"].forEach((player) => {
+      result.players!["5-1"].forEach((player) => {
         expect(["S", "Opp", "OH", "MB"]).toContain(player.role);
       });
 
-      result.players["6-2"].forEach((player) => {
+      result.players!["6-2"].forEach((player) => {
         expect(["S", "Opp", "OH", "MB"]).toContain(player.role);
       });
     });

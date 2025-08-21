@@ -306,11 +306,11 @@ describe("Configuration Integration", () => {
         userConfig
       );
 
-      expect(merged.appearance.playerColors.S).toBe("#custom-green"); // User override
-      expect(merged.appearance.playerColors.Opp).toBe("#orange"); // Default preserved
-      expect(merged.appearance.playerColors.MB).toBe("#red"); // User addition
-      expect(merged.appearance.fontSize.playerNames).toBe(14); // User override
-      expect(merged.appearance.fontSize.positionLabels).toBe(10); // Default preserved
+      expect(merged.appearance.playerColors?.S).toBe("#custom-green"); // User override
+      expect(merged.appearance.playerColors?.Opp).toBe("#orange"); // Default preserved
+      expect(merged.appearance.playerColors?.MB).toBe("#red"); // User addition
+      expect(merged.appearance.fontSize?.playerNames).toBe(14); // User override
+      expect(merged.appearance.fontSize?.positionLabels).toBe(10); // Default preserved
     });
   });
 
@@ -335,7 +335,7 @@ describe("Configuration Integration", () => {
 
       // Test the validator function
       const result = customRule.validator(
-        { p1: { x: 0, y: 0 }, p2: { x: 1, y: 1 } },
+        { p1: { x: 0, y: 0, isCustom: false, lastModified: new Date() }, p2: { x: 1, y: 1, isCustom: false, lastModified: new Date() } },
         {} as any
       );
       expect(result).toBe(false); // Only 2 players, should fail
@@ -347,7 +347,7 @@ describe("Configuration Integration", () => {
       const customConfig: VolleyballCourtConfig = {
         initialSystem: "6-2",
         initialRotation: 2,
-        initialFormation: "serve-receive",
+        initialFormation: "serveReceive",
         players: {
           "5-1": [],
           "6-2": PlayerCustomization.createCustomPlayerSet("6-2", [
