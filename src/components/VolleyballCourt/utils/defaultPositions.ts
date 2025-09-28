@@ -56,14 +56,16 @@ function createDefaultPosition(x: number, y: number): PlayerPosition {
  * Gets default rotational positions for a given rotation
  */
 export function getDefaultRotationalPositions(
-  rotationIndex: number
+  rotationIndex: number,
+  rotationMap?: Record<number, string>
 ): Record<string, PlayerPosition> {
   const positions: Record<string, PlayerPosition> = {};
 
   // Convert position numbers to player IDs based on rotation
   for (let pos = 1; pos <= 6; pos++) {
     const coord = baseCoords[pos as keyof typeof baseCoords];
-    positions[`pos${pos}`] = createDefaultPosition(coord.x, coord.y);
+    const playerId = rotationMap ? rotationMap[pos] : `pos${pos}`;
+    positions[playerId] = createDefaultPosition(coord.x, coord.y);
   }
 
   return positions;
@@ -74,37 +76,71 @@ export function getDefaultRotationalPositions(
  */
 export function getDefaultServeReceivePositions(
   _rotationIndex: number,
-  _system: SystemType
+  _system: SystemType,
+  rotationMap?: Record<number, string>
 ): Record<string, PlayerPosition> {
   const positions: Record<string, PlayerPosition> = {};
 
-  // Primary receivers (back-row players)
-  positions["receiver1"] = createDefaultPosition(
-    serveReceiveCoords.SR_right.x,
-    serveReceiveCoords.SR_right.y
-  );
-  positions["receiver2"] = createDefaultPosition(
-    serveReceiveCoords.SR_middle.x,
-    serveReceiveCoords.SR_middle.y
-  );
-  positions["receiver3"] = createDefaultPosition(
-    serveReceiveCoords.SR_left.x,
-    serveReceiveCoords.SR_left.y
-  );
+  if (rotationMap) {
+    // Use actual player IDs from rotation mapping for serve/receive formation
+    // Map back-row players (typically positions 1, 5, 6) to serve receive positions
+    const backRowPositions = [1, 5, 6];
+    const frontRowPositions = [2, 3, 4];
 
-  // Front-row players move to pockets
-  positions["front1"] = createDefaultPosition(
-    serveReceiveCoords.SR_frontRight.x,
-    serveReceiveCoords.SR_frontRight.y
-  );
-  positions["front2"] = createDefaultPosition(
-    serveReceiveCoords.SR_frontLeft.x,
-    serveReceiveCoords.SR_frontLeft.y
-  );
-  positions["front3"] = createDefaultPosition(
-    COURT_DIMENSIONS.width * 0.5,
-    COURT_DIMENSIONS.height * 0.45
-  );
+    // Primary receivers (back-row players)
+    backRowPositions.forEach((pos, index) => {
+      const playerId = rotationMap[pos];
+      if (playerId) {
+        const coords = [
+          serveReceiveCoords.SR_right,
+          serveReceiveCoords.SR_left,
+          serveReceiveCoords.SR_middle,
+        ][index];
+        positions[playerId] = createDefaultPosition(coords.x, coords.y);
+      }
+    });
+
+    // Front-row players move to pockets
+    frontRowPositions.forEach((pos, index) => {
+      const playerId = rotationMap[pos];
+      if (playerId) {
+        const coords = [
+          serveReceiveCoords.SR_frontRight,
+          { x: COURT_DIMENSIONS.width * 0.5, y: COURT_DIMENSIONS.height * 0.45 },
+          serveReceiveCoords.SR_frontLeft,
+        ][index];
+        positions[playerId] = createDefaultPosition(coords.x, coords.y);
+      }
+    });
+  } else {
+    // Fallback to generic positions
+    positions["receiver1"] = createDefaultPosition(
+      serveReceiveCoords.SR_right.x,
+      serveReceiveCoords.SR_right.y
+    );
+    positions["receiver2"] = createDefaultPosition(
+      serveReceiveCoords.SR_middle.x,
+      serveReceiveCoords.SR_middle.y
+    );
+    positions["receiver3"] = createDefaultPosition(
+      serveReceiveCoords.SR_left.x,
+      serveReceiveCoords.SR_left.y
+    );
+
+    // Front-row players move to pockets
+    positions["front1"] = createDefaultPosition(
+      serveReceiveCoords.SR_frontRight.x,
+      serveReceiveCoords.SR_frontRight.y
+    );
+    positions["front2"] = createDefaultPosition(
+      serveReceiveCoords.SR_frontLeft.x,
+      serveReceiveCoords.SR_frontLeft.y
+    );
+    positions["front3"] = createDefaultPosition(
+      COURT_DIMENSIONS.width * 0.5,
+      COURT_DIMENSIONS.height * 0.45
+    );
+  }
 
   return positions;
 }
@@ -114,7 +150,8 @@ export function getDefaultServeReceivePositions(
  */
 export function getDefaultBasePositions(
   _rotationIndex: number,
-  _system: SystemType
+  _system: SystemType,
+  rotationMap?: Record<number, string>
 ): Record<string, PlayerPosition> {
   const positions: Record<string, PlayerPosition> = {};
 
@@ -139,7 +176,8 @@ export function getDefaultBasePositions(
       coord.y -= 10; // Setters step up slightly
     }
 
-    positions[`pos${pos}`] = createDefaultPosition(coord.x, coord.y);
+    const playerId = rotationMap ? rotationMap[pos] : `pos${pos}`;
+    positions[playerId] = createDefaultPosition(coord.x, coord.y);
   }
 
   return positions;
@@ -151,17 +189,18 @@ export function getDefaultBasePositions(
 export function getDefaultPositions(
   formationType: FormationType,
   _rotationIndex: number,
-  _system: SystemType
+  _system: SystemType,
+  rotationMap?: Record<number, string>
 ): Record<string, PlayerPosition> {
   switch (formationType) {
     case "rotational":
-      return getDefaultRotationalPositions(_rotationIndex);
+      return getDefaultRotationalPositions(_rotationIndex, rotationMap);
     case "serveReceive":
-      return getDefaultServeReceivePositions(_rotationIndex, _system);
+      return getDefaultServeReceivePositions(_rotationIndex, _system, rotationMap);
     case "base":
-      return getDefaultBasePositions(_rotationIndex, _system);
+      return getDefaultBasePositions(_rotationIndex, _system, rotationMap);
     default:
-      return getDefaultRotationalPositions(_rotationIndex);
+      return getDefaultRotationalPositions(_rotationIndex, rotationMap);
   }
 }
 
@@ -185,12 +224,14 @@ export function resetToDefault(
   formationType: FormationType,
   rotationIndex: number,
   system: SystemType,
-  playerId: string
+  playerId: string,
+  rotationMap?: Record<number, string>
 ): PlayerPosition {
   const defaultPositions = getDefaultPositions(
     formationType,
     rotationIndex,
-    system
+    system,
+    rotationMap
   );
   const defaultPosition = defaultPositions[playerId];
 
@@ -207,4 +248,21 @@ export function resetToDefault(
     COURT_DIMENSIONS.width / 2,
     COURT_DIMENSIONS.height / 2
   );
+}
+
+/**
+ * Enhanced getDefaultPositions that works with rotation configurations
+ * This function creates positions using player IDs from rotation mappings
+ */
+export function getDefaultPositionsWithRotation(
+  formationType: FormationType,
+  rotationIndex: number,
+  system: SystemType,
+  rotationConfig?: Record<number, string>[]
+): Record<string, PlayerPosition> {
+  // Get the rotation mapping for the specified rotation
+  const rotationMap = rotationConfig?.[rotationIndex];
+
+  // Use the enhanced function that accepts rotation mappings
+  return getDefaultPositions(formationType, rotationIndex, system, rotationMap);
 }

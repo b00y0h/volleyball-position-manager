@@ -5,7 +5,7 @@ import {
   NotificationProvider,
   useNotifications,
   NotificationType,
-} from "@/components/NotificationSystem";
+} from "./NotificationSystem";
 import { ErrorData, ViolationData } from "./types";
 
 interface NotificationLayerProps {

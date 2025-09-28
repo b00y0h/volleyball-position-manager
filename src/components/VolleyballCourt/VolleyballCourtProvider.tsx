@@ -36,6 +36,7 @@ import {
   PersistenceState,
 } from "./PersistenceManager";
 import { ConfigurationManager } from "./ConfigurationUtils";
+import { getDefaultPositionsWithRotation } from "./utils/defaultPositions";
 
 // Context interface
 interface VolleyballCourtContextValue {
@@ -339,10 +340,11 @@ export function VolleyballCourtProvider({
     showControls,
     shareURL: "",
     showShareDialog: false,
-    positions: positionManager.getFormationPositions(
-      config.initialSystem,
+    positions: getDefaultPositionsWithRotation(
+      config.initialFormation,
       config.initialRotation,
-      config.initialFormation
+      config.initialSystem,
+      config.rotations[config.initialSystem]
     ),
     isLoading: false,
     error: null,
@@ -423,10 +425,11 @@ export function VolleyballCourtProvider({
           }));
         } else {
           // No persisted state, use default positions
-          const positions = positionManager.getFormationPositions(
-            config.initialSystem,
+          const positions = getDefaultPositionsWithRotation(
+            config.initialFormation,
             config.initialRotation,
-            config.initialFormation
+            config.initialSystem,
+            config.rotations[config.initialSystem]
           );
           setState((prev) => ({ ...prev, positions, isLoading: false }));
         }
@@ -434,10 +437,11 @@ export function VolleyballCourtProvider({
         console.error("Failed to initialize persistence:", error);
 
         // Fallback to default positions
-        const positions = positionManager.getFormationPositions(
-          config.initialSystem,
+        const positions = getDefaultPositionsWithRotation(
+          config.initialFormation,
           config.initialRotation,
-          config.initialFormation
+          config.initialSystem,
+          config.rotations[config.initialSystem]
         );
         setState((prev) => ({
           ...prev,
@@ -457,10 +461,11 @@ export function VolleyballCourtProvider({
   useEffect(() => {
     if (!isInitialized) return;
 
-    const positions = positionManager.getFormationPositions(
-      state.system,
+    const positions = getDefaultPositionsWithRotation(
+      state.formation,
       state.rotationIndex,
-      state.formation
+      state.system,
+      config.rotations[state.system]
     );
     setState((prev) => ({ ...prev, positions }));
   }, [
@@ -756,10 +761,11 @@ export function VolleyballCourtProvider({
         system: config.initialSystem,
         rotationIndex: config.initialRotation,
         formation: config.initialFormation,
-        positions: positionManager.getFormationPositions(
-          config.initialSystem,
+        positions: getDefaultPositionsWithRotation(
+          config.initialFormation,
           config.initialRotation,
-          config.initialFormation
+          config.initialSystem,
+          config.rotations[config.initialSystem]
         ),
       }));
     } catch (error) {

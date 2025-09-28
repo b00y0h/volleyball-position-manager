@@ -248,62 +248,72 @@ const VolleyballCourtInternal: React.FC = () => {
           className="absolute inset-0"
         />
 
-        {/* Player Layer with full functionality */}
-        <PlayerLayer
-          players={config.players[state.system]}
-          positions={state.positions}
-          rotationMap={config.rotations[state.system][state.rotationIndex]}
-          formation={state.formation}
-          draggedPlayer={state.draggedPlayer}
-          visualGuidelines={state.visualGuidelines}
-          readOnly={state.isReadOnly}
-          courtDimensions={courtDimensions}
-          system={state.system}
-          rotation={state.rotationIndex}
-          onDragStart={(playerId) => {
-            setDraggedPlayer(playerId);
+        {/* Player Layer with full functionality - wrapped in SVG overlay */}
+        <svg
+          viewBox={`0 0 ${courtDimensions.width} ${courtDimensions.height}`}
+          width="100%"
+          height={courtDimensions.height}
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            zIndex: 10,
           }}
-          onDragEnd={(playerId, success) => {
-            setDraggedPlayer(null);
-          }}
-          onPositionChange={(playerId, position) => {
-            handlePositionChange({
-              ...state.positions,
-              [playerId]: position,
-            }, "drag", [playerId]);
-          }}
-          onResetPosition={(playerId) => {
-            // Reset individual player position
-            const defaultPositions = positionManager.getFormationPositions(
-              state.system,
-              state.rotationIndex,
-              state.formation
-            );
-            handlePositionChange({
-              ...state.positions,
-              [playerId]: defaultPositions[playerId],
-            }, "reset", [playerId]);
-          }}
-          onVolleyballRuleViolation={(playerId, violations) => {
-            // Handle rule violations
-            const violationData = violations.map((message) => ({
-              id: `violation_${Date.now()}_${playerId}`,
-              code: "RULE_VIOLATION",
-              message,
-              affectedPlayers: [playerId],
-              severity: "warning" as const,
-              timestamp: Date.now(),
-              violationType: "positioning" as const,
-              context: {
-                system: state.system,
-                rotation: state.rotationIndex,
-                formation: state.formation,
-                positions: state.positions,
-              },
-            }));
-            handleViolation(violationData);
-          }}
-        />
+        >
+          <PlayerLayer
+            players={config.players[state.system]}
+            positions={state.positions}
+            rotationMap={config.rotations[state.system][state.rotationIndex]}
+            formation={state.formation}
+            draggedPlayer={state.draggedPlayer}
+            visualGuidelines={state.visualGuidelines}
+            readOnly={state.isReadOnly}
+            courtDimensions={courtDimensions}
+            system={state.system}
+            rotation={state.rotationIndex}
+            onDragStart={(playerId) => {
+              setDraggedPlayer(playerId);
+            }}
+            onDragEnd={(playerId, success) => {
+              setDraggedPlayer(null);
+            }}
+            onPositionChange={(playerId, position) => {
+              handlePositionChange({
+                ...state.positions,
+                [playerId]: position,
+              }, "drag", [playerId]);
+            }}
+            onResetPosition={(playerId) => {
+              // Reset individual player position
+              const defaultPositions = positionManager.getFormationPositions(
+                state.system,
+                state.rotationIndex,
+                state.formation
+              );
+              handlePositionChange({
+                ...state.positions,
+                [playerId]: defaultPositions[playerId],
+              }, "reset", [playerId]);
+            }}
+            onVolleyballRuleViolation={(playerId, violations) => {
+              // Handle rule violations
+              const violationData = violations.map((message) => ({
+                id: `violation_${Date.now()}_${playerId}`,
+                code: "RULE_VIOLATION",
+                message,
+                affectedPlayers: [playerId],
+                severity: "warning" as const,
+                timestamp: Date.now(),
+                violationType: "positioning" as const,
+                context: {
+                  system: state.system,
+                  rotation: state.rotationIndex,
+                  formation: state.formation,
+                  positions: state.positions,
+                },
+              }));
+              handleViolation(violationData);
+            }}
+          />
+        </svg>
 
         {/* Validation Layer - Shows rule violations */}
         {config.validation?.showViolationDetails && violations.length > 0 && (

@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SystemType, FormationType } from "./types";
-import { useNotifications } from "../NotificationSystem";
+import { useNotifications } from "./NotificationSystem";
 
 export interface ResetOption {
   id: string;
