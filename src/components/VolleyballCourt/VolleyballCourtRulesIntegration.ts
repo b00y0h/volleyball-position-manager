@@ -3,20 +3,20 @@
  * Provides a clean interface between the VolleyballCourt component and the volleyball rules engine
  */
 
-import { VolleyballRulesEngine } from "@/volleyball-rules-engine/VolleyballRulesEngine";
-import { OptimizedConstraintCalculator } from "@/volleyball-rules-engine/validation/OptimizedConstraintCalculator";
-import { StateConverter } from "@/volleyball-rules-engine/utils/StateConverter";
-import { CoordinateTransformer } from "@/volleyball-rules-engine/utils/CoordinateTransformer";
+import { VolleyballRulesEngine } from "./volleyball-rules-engine/VolleyballRulesEngine";
+import { ConstraintCalculator } from "./volleyball-rules-engine/validation/ConstraintCalculator";
+import { StateConverter } from "./volleyball-rules-engine/utils/StateConverter";
+import { CoordinateTransformer } from "./volleyball-rules-engine/utils/CoordinateTransformer";
 import type {
   PlayerState,
   RotationSlot,
-} from "@/volleyball-rules-engine/types/PlayerState";
-import type { PositionBounds } from "@/volleyball-rules-engine/types/ValidationResult";
+} from "./volleyball-rules-engine/types/PlayerState";
+import type { PositionBounds } from "./volleyball-rules-engine/types/ValidationResult";
 import type {
   PlayerPosition,
   SystemType,
   FormationType,
-} from "@/types/positioning";
+} from "./types";
 import type {
   CourtDimensions,
   ConstraintBoundaries,
@@ -100,13 +100,17 @@ export class VolleyballCourtRulesIntegration {
 
       // Convert violations to screen format
       const violations: ViolationData[] = validationResult.violations.map(
-        (violation) => ({
+        (violation, index) => ({
+          id: `violation_${Date.now()}_${index}`,
           code: violation.code,
           message: violation.message,
           affectedPlayers: violation.slots
             .map((slot) => rotationMap[slot])
             .filter(Boolean),
           severity: violation.code === "INVALID_LINEUP" ? "error" : "warning",
+          timestamp: Date.now(),
+          violationType: "rules" as const,
+          context: {},
         })
       );
 
@@ -120,10 +124,14 @@ export class VolleyballCourtRulesIntegration {
         isValid: false,
         violations: [
           {
+            id: `error_${Date.now()}`,
             code: "VALIDATION_ERROR",
             message: "Unable to validate lineup due to internal error",
             affectedPlayers: [],
             severity: "error",
+            timestamp: Date.now(),
+            violationType: "system" as const,
+            context: {},
           },
         ],
       };
@@ -185,11 +193,15 @@ export class VolleyballCourtRulesIntegration {
 
         violations = fullValidation.violations
           .filter((v) => v.slots.includes(context.slot))
-          .map((violation) => ({
+          .map((violation, index) => ({
+            id: `violation_${Date.now()}_${index}`,
             code: violation.code,
             message: violation.message,
             affectedPlayers: [context.playerId],
             severity: "error" as const,
+            timestamp: Date.now(),
+            violationType: "rules" as const,
+            context: {},
           }));
 
         // Calculate constraint boundaries if enabled
@@ -220,10 +232,14 @@ export class VolleyballCourtRulesIntegration {
         isValid: false,
         violations: [
           {
+            id: `error_${Date.now()}`,
             code: "VALIDATION_ERROR",
             message: "Unable to validate position due to internal error",
             affectedPlayers: [context.playerId],
             severity: "error",
+            timestamp: Date.now(),
+            violationType: "system" as const,
+            context: {},
           },
         ],
       };
@@ -256,13 +272,12 @@ export class VolleyballCourtRulesIntegration {
         positionMap.set(state.slot, state);
       });
 
-      // Calculate constraints using optimized calculator
-      const constraints =
-        OptimizedConstraintCalculator.calculateOptimizedConstraints(
-          context.slot,
-          positionMap,
-          context.isServer
-        );
+      // Calculate constraints using constraint calculator
+      const constraints = ConstraintCalculator.calculateValidBounds(
+        context.slot,
+        positionMap,
+        context.isServer
+      );
 
       // Convert volleyball constraints to screen coordinates
       const screenConstraints = this.convertConstraintsToScreen(constraints);
@@ -396,7 +411,7 @@ export class VolleyballCourtRulesIntegration {
     return {
       validationCacheSize: this.lastValidationCache.size,
       constraintCacheSize: this.constraintCache.size,
-      rulesEngineMetrics: OptimizedConstraintCalculator.getPerformanceMetrics(),
+      rulesEngineMetrics: {}, // Placeholder for performance metrics
     };
   }
 

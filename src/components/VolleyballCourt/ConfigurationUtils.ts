@@ -20,7 +20,7 @@ import {
   ValidationContext,
   PlayerColorConfig,
 } from "./types";
-import { SystemType, FormationType, PlayerPosition } from "@/types";
+import { SystemType, FormationType, PlayerPosition } from "./types";
 
 /**
  * Configuration validation and utilities
@@ -159,7 +159,7 @@ export class ConfigurationManager {
       }
 
       // Validate player role
-      const validRoles = ["S", "Opp", "OH", "MB"];
+      const validRoles = ["S", "OPP", "OH", "MB"];
       if (!validRoles.includes(player.role)) {
         errors.push(
           `Invalid role "${player.role}" for player ${
@@ -592,7 +592,7 @@ export class ConfigurationManager {
   static createCustomPlayer(
     id: string,
     name: string,
-    role: "S" | "Opp" | "OH" | "MB",
+    role: "S" | "OPP" | "OH" | "MB",
     options?: {
       color?: string;
       number?: number;
@@ -679,7 +679,7 @@ export class ConfigurationManager {
       netColor: theme === "dark" ? "#f9fafb" : "#000000",
       playerColors: {
         S: theme === "dark" ? "#34d399" : "#10b981",
-        Opp: theme === "dark" ? "#fbbf24" : "#f59e0b",
+        OPP: theme === "dark" ? "#fbbf24" : "#f59e0b",
         OH: theme === "dark" ? "#60a5fa" : "#3b82f6",
         MB: theme === "dark" ? "#f87171" : "#ef4444",
         frontRow: theme === "dark" ? "#f9fafb" : "#1f2937",
@@ -796,7 +796,7 @@ export class ConfigurationManager {
           theme: "dark",
           playerColors: {
             S: "#00ff00",
-            Opp: "#ffff00",
+            OPP: "#ffff00",
             OH: "#00ffff",
             MB: "#ff00ff",
             frontRow: "#ffffff",
@@ -849,7 +849,7 @@ export class PlayerCustomization {
     system: SystemType,
     playerData: Array<{
       name: string;
-      role: "S" | "Opp" | "OH" | "MB";
+      role: "S" | "OPP" | "OH" | "MB";
       number?: number;
       color?: string;
     }>
@@ -899,10 +899,10 @@ export class PlayerCustomization {
   /**
    * Gets default color for a role
    */
-  static getRoleColor(role: "S" | "Opp" | "OH" | "MB"): string {
+  static getRoleColor(role: "S" | "OPP" | "OH" | "MB"): string {
     const roleColors = {
       S: "#10b981", // Green for setters
-      Opp: "#f59e0b", // Amber for opposite
+      OPP: "#f59e0b", // Amber for opposite
       OH: "#3b82f6", // Blue for outside hitters
       MB: "#ef4444", // Red for middle blockers
     };
@@ -1054,7 +1054,7 @@ export class ConfigurationBuilder {
     system: SystemType,
     id: string,
     name: string,
-    role: "S" | "Opp" | "OH" | "MB",
+    role: "S" | "OPP" | "OH" | "MB",
     options?: {
       color?: string;
       number?: number;
@@ -1326,7 +1326,7 @@ export class ThemeCustomization {
     return {
       default: {
         S: "#10b981", // Green
-        Opp: "#f59e0b", // Amber
+        OPP: "#f59e0b", // Amber
         OH: "#3b82f6", // Blue
         MB: "#ef4444", // Red
         frontRow: "#1f2937",
@@ -1337,7 +1337,7 @@ export class ThemeCustomization {
       },
       ocean: {
         S: "#0891b2", // Cyan
-        Opp: "#0284c7", // Sky
+        OPP: "#0284c7", // Sky
         OH: "#1d4ed8", // Blue
         MB: "#4338ca", // Indigo
         frontRow: "#0f172a",
@@ -1348,7 +1348,7 @@ export class ThemeCustomization {
       },
       forest: {
         S: "#059669", // Emerald
-        Opp: "#65a30d", // Lime
+        OPP: "#65a30d", // Lime
         OH: "#16a34a", // Green
         MB: "#15803d", // Green
         frontRow: "#14532d",
@@ -1359,7 +1359,7 @@ export class ThemeCustomization {
       },
       sunset: {
         S: "#ea580c", // Orange
-        Opp: "#dc2626", // Red
+        OPP: "#dc2626", // Red
         OH: "#c2410c", // Orange
         MB: "#991b1b", // Red
         frontRow: "#431407",
@@ -1370,7 +1370,7 @@ export class ThemeCustomization {
       },
       monochrome: {
         S: "#000000",
-        Opp: "#374151",
+        OPP: "#374151",
         OH: "#6b7280",
         MB: "#9ca3af",
         frontRow: "#111827",
@@ -1548,7 +1548,7 @@ export class AdvancedConfiguration {
     // Check for conflicting settings
     if (
       config.animation?.enableAnimations === false &&
-      config.validation?.bounceOnViolation
+      config.animation?.bounceOnViolation
     ) {
       warnings.push(
         "Bounce on violation is enabled but animations are disabled"

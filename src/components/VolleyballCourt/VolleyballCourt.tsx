@@ -7,18 +7,36 @@ import {
   useVolleyballCourt,
 } from "./VolleyballCourtProvider";
 import { CourtVisualization } from "./CourtVisualization";
+import { PlayerLayer } from "./PlayerLayer";
+import { ControlsLayer } from "./ControlsLayer";
 import { calculateCourtDimensions } from "./courtCoordinates";
 import { VolleyballCourtErrorBoundary } from "./VolleyballCourtErrorBoundary";
 import { ValidationLayer } from "./ValidationLayer";
 import { NotificationLayer } from "./NotificationLayer";
 import { ReadOnlyIndicator } from "./ReadOnlyIndicator";
+import { BrowserCompatibilityWarning } from "./BrowserCompatibilityWarning";
 import { ConfigurationManager } from "./ConfigurationUtils";
 
 
 // Internal component that uses the context
 const VolleyballCourtInternal: React.FC = () => {
-  const { state, config, hasURLData, persistenceManager } =
-    useVolleyballCourt();
+  const { 
+    state, 
+    config, 
+    hasURLData, 
+    persistenceManager,
+    positionManager,
+    setDraggedPlayer,
+    setSystem,
+    setRotationIndex,
+    setFormation,
+    setIsAnimating,
+    handlePositionChange,
+    handleViolation,
+    handleRotationChange,
+    handleFormationChange,
+    clearStoredData
+  } = useVolleyballCourt();
 
   // Track hydration to prevent SSR/client mismatch
   const [isHydrated, setIsHydrated] = useState(false);
@@ -39,10 +57,19 @@ const VolleyballCourtInternal: React.FC = () => {
   useEffect(() => {
     const violationData: ViolationData[] = state.violations.map(
       (violation, index) => ({
+        id: `violation_${index}`,
         code: `VIOLATION_${index}`,
         message: violation,
         affectedPlayers: [], // Would need to be populated by rules engine
         severity: "error" as const,
+        timestamp: Date.now(),
+        violationType: "positioning" as const,
+        context: {
+          system: state.system,
+          rotation: state.rotationIndex,
+          formation: state.formation,
+          positions: state.positions,
+        },
       })
     );
     setViolations(violationData);
@@ -52,9 +79,12 @@ const VolleyballCourtInternal: React.FC = () => {
   useEffect(() => {
     if (state.error) {
       const errorData: ErrorData = {
+        id: `error_${Date.now()}`,
         type: "unknown",
         message: state.error,
         details: null,
+        timestamp: Date.now(),
+        severity: "medium",
       };
       setErrors([errorData]);
     } else {
@@ -155,6 +185,47 @@ const VolleyballCourtInternal: React.FC = () => {
         className="mb-2"
       />
 
+      {/* Controls Layer */}
+      {state.showControls && (
+        <ControlsLayer
+          system={state.system}
+          rotationIndex={state.rotationIndex}
+          formation={state.formation}
+          isAnimating={state.isAnimating}
+          isReadOnly={state.isReadOnly}
+          controlsConfig={config.controls}
+          onSystemChange={(system) => {
+            setSystem(system);
+          }}
+          onRotationChange={(rotation) => {
+            handleRotationChange(rotation, "manual", "controls");
+          }}
+          onFormationChange={(formation) => {
+            handleFormationChange(formation, "manual", "controls");
+          }}
+          onReset={(type) => {
+            if (type === "all" || type === "system") {
+              clearStoredData();
+            } else if (type === "formation") {
+              const defaultPositions = positionManager.getFormationPositions(
+                state.system,
+                state.rotationIndex,
+                state.formation
+              );
+              handlePositionChange(defaultPositions, "reset");
+            }
+          }}
+          onShare={() => {
+            // Share functionality - could open share dialog
+          }}
+          onAnimate={() => {
+            setIsAnimating(true);
+            // Animation logic would go here
+            setTimeout(() => setIsAnimating(false), 1000);
+          }}
+        />
+      )}
+
       <div
         className="volleyball-court"
         style={{
@@ -177,6 +248,63 @@ const VolleyballCourtInternal: React.FC = () => {
           className="absolute inset-0"
         />
 
+        {/* Player Layer with full functionality */}
+        <PlayerLayer
+          players={config.players[state.system]}
+          positions={state.positions}
+          rotationMap={config.rotations[state.system][state.rotationIndex]}
+          formation={state.formation}
+          draggedPlayer={state.draggedPlayer}
+          visualGuidelines={state.visualGuidelines}
+          readOnly={state.isReadOnly}
+          courtDimensions={courtDimensions}
+          system={state.system}
+          rotation={state.rotationIndex}
+          onDragStart={(playerId) => {
+            setDraggedPlayer(playerId);
+          }}
+          onDragEnd={(playerId, success) => {
+            setDraggedPlayer(null);
+          }}
+          onPositionChange={(playerId, position) => {
+            handlePositionChange({
+              ...state.positions,
+              [playerId]: position,
+            }, "drag", [playerId]);
+          }}
+          onResetPosition={(playerId) => {
+            // Reset individual player position
+            const defaultPositions = positionManager.getFormationPositions(
+              state.system,
+              state.rotationIndex,
+              state.formation
+            );
+            handlePositionChange({
+              ...state.positions,
+              [playerId]: defaultPositions[playerId],
+            }, "reset", [playerId]);
+          }}
+          onVolleyballRuleViolation={(playerId, violations) => {
+            // Handle rule violations
+            const violationData = violations.map((message) => ({
+              id: `violation_${Date.now()}_${playerId}`,
+              code: "RULE_VIOLATION",
+              message,
+              affectedPlayers: [playerId],
+              severity: "warning" as const,
+              timestamp: Date.now(),
+              violationType: "positioning" as const,
+              context: {
+                system: state.system,
+                rotation: state.rotationIndex,
+                formation: state.formation,
+                positions: state.positions,
+              },
+            }));
+            handleViolation(violationData);
+          }}
+        />
+
         {/* Validation Layer - Shows rule violations */}
         {config.validation?.showViolationDetails && violations.length > 0 && (
           <ValidationLayer
@@ -185,31 +313,6 @@ const VolleyballCourtInternal: React.FC = () => {
             onDismiss={() => setViolations([])}
           />
         )}
-
-        {/* Temporary overlay with component info */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="text-center bg-white/90 dark:bg-gray-800/90 p-4 rounded-lg shadow-lg">
-          <div className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            Volleyball Court Component
-          </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            System: {state.system} | Rotation: {state.rotationIndex + 1} |
-            Formation: {state.formation}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-            {courtDimensions.width} × {courtDimensions.height}
-          </div>
-          <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-            Context provider active - State management working
-          </div>
-          {violations.length > 0 && (
-            <div className="text-xs text-red-500 mt-1">
-              {violations.length} violation{violations.length > 1 ? "s" : ""}{" "}
-              detected
-            </div>
-          )}
-        </div>
-      </div>
 
       </div>
 
@@ -221,6 +324,9 @@ const VolleyballCourtInternal: React.FC = () => {
           {state.violations.length} | Errors: {errors.length}
         </div>
       )}
+
+      {/* Browser Compatibility Warning */}
+      <BrowserCompatibilityWarning />
     </div>
   );
 };

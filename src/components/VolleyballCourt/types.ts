@@ -3,7 +3,19 @@
  */
 
 import React from "react";
-import { SystemType, FormationType, PlayerPosition } from "@/types";
+// Import common types that should be defined within this package
+export type SystemType = "5-1" | "6-2";
+export type FormationType = "rotational" | "serveReceive" | "base";
+
+export interface PlayerPosition {
+  x: number;
+  y: number;
+  isCustom?: boolean;
+  lastModified?: Date;
+}
+
+// Constants for type validation
+export const PLAYER_RADIUS = 20;
 
 // Re-export types for consistency
 export type { SystemType, FormationType, PlayerPosition };
@@ -31,7 +43,7 @@ export interface VolleyballCourtProps {
   onViolation?: (violations: ViolationData[]) => void;
   onShare?: (shareData: ShareData) => void;
   onError?: (error: ErrorData) => void;
-  
+
   // Extended callbacks
   onPlayerDragStart?: (data: PlayerDragData) => void;
   onPlayerDragEnd?: (data: PlayerDragData) => void;
@@ -110,7 +122,7 @@ export interface PlayerDefinition {
   size?: number; // Custom size multiplier
 }
 
-export type PlayerRole = "S" | "Opp" | "OH" | "MB";
+export type PlayerRole = "S" | "OPP" | "OH" | "MB";
 
 // Rotation mapping
 export interface RotationMapping {
@@ -125,7 +137,12 @@ export interface PositionData {
   positions: Record<string, PlayerPosition>;
   timestamp: number;
   changedPlayers?: string[]; // List of player IDs that changed
-  changeType?: "drag" | "formation-change" | "rotation-change" | "reset" | "manual";
+  changeType?:
+    | "drag"
+    | "formation-change"
+    | "rotation-change"
+    | "reset"
+    | "manual";
   metadata?: {
     previousPositions?: Record<string, PlayerPosition>;
     draggedPlayerId?: string;
@@ -141,7 +158,12 @@ export interface ViolationData {
   affectedPlayers: string[];
   severity: "error" | "warning" | "info";
   timestamp: number;
-  violationType: "positioning" | "rotation" | "formation" | "court-boundary" | "custom";
+  violationType:
+    | "positioning"
+    | "rotation"
+    | "formation"
+    | "court-boundary"
+    | "custom";
   context: {
     system: SystemType;
     rotation: number;
@@ -178,7 +200,13 @@ export interface ShareData {
 // Error data for callbacks
 export interface ErrorData {
   id: string; // Unique error ID
-  type: "validation" | "storage" | "network" | "permission" | "configuration" | "unknown";
+  type:
+    | "validation"
+    | "storage"
+    | "network"
+    | "permission"
+    | "configuration"
+    | "unknown";
   message: string;
   timestamp: number;
   severity: "low" | "medium" | "high" | "critical";
@@ -369,7 +397,7 @@ export interface PlayerColorConfig {
   [playerId: string]: string | undefined;
   // Role-based colors
   S?: string; // Setter
-  Opp?: string; // Opposite
+  OPP?: string; // Opposite
   OH?: string; // Outside Hitter
   MB?: string; // Middle Blocker
   // System-based colors

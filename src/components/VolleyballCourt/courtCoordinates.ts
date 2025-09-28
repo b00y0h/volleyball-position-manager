@@ -101,12 +101,42 @@ export function getBaseCoordinates(
   const { width, height } = courtDimensions;
 
   return {
-    1: { x: width * 0.78, y: height * 0.82, isCustom: false, lastModified: new Date() }, // right-back (1)
-    2: { x: width * 0.78, y: height * 0.42, isCustom: false, lastModified: new Date() }, // right-front (2)
-    3: { x: width * 0.5, y: height * 0.42, isCustom: false, lastModified: new Date() }, // middle-front (3)
-    4: { x: width * 0.22, y: height * 0.42, isCustom: false, lastModified: new Date() }, // left-front (4)
-    5: { x: width * 0.22, y: height * 0.82, isCustom: false, lastModified: new Date() }, // left-back (5)
-    6: { x: width * 0.5, y: height * 0.82, isCustom: false, lastModified: new Date() }, // middle-back (6)
+    1: {
+      x: width * 0.78,
+      y: height * 0.82,
+      isCustom: false,
+      lastModified: new Date(),
+    }, // right-back (1)
+    2: {
+      x: width * 0.78,
+      y: height * 0.42,
+      isCustom: false,
+      lastModified: new Date(),
+    }, // right-front (2)
+    3: {
+      x: width * 0.5,
+      y: height * 0.42,
+      isCustom: false,
+      lastModified: new Date(),
+    }, // middle-front (3)
+    4: {
+      x: width * 0.22,
+      y: height * 0.42,
+      isCustom: false,
+      lastModified: new Date(),
+    }, // left-front (4)
+    5: {
+      x: width * 0.22,
+      y: height * 0.82,
+      isCustom: false,
+      lastModified: new Date(),
+    }, // left-back (5)
+    6: {
+      x: width * 0.5,
+      y: height * 0.82,
+      isCustom: false,
+      lastModified: new Date(),
+    }, // middle-back (6)
   };
 }
 
@@ -119,11 +149,36 @@ export function getServeReceiveCoordinates(
   const { width, height } = courtDimensions;
 
   return {
-    SR_right: { x: width * 0.7, y: height * 0.7, isCustom: false, lastModified: new Date() },
-    SR_middle: { x: width * 0.5, y: height * 0.65, isCustom: false, lastModified: new Date() },
-    SR_left: { x: width * 0.3, y: height * 0.7, isCustom: false, lastModified: new Date() },
-    SR_frontRight: { x: width * 0.72, y: height * 0.5, isCustom: false, lastModified: new Date() },
-    SR_frontLeft: { x: width * 0.28, y: height * 0.5, isCustom: false, lastModified: new Date() },
+    SR_right: {
+      x: width * 0.7,
+      y: height * 0.7,
+      isCustom: false,
+      lastModified: new Date(),
+    },
+    SR_middle: {
+      x: width * 0.5,
+      y: height * 0.65,
+      isCustom: false,
+      lastModified: new Date(),
+    },
+    SR_left: {
+      x: width * 0.3,
+      y: height * 0.7,
+      isCustom: false,
+      lastModified: new Date(),
+    },
+    SR_frontRight: {
+      x: width * 0.72,
+      y: height * 0.5,
+      isCustom: false,
+      lastModified: new Date(),
+    },
+    SR_frontLeft: {
+      x: width * 0.28,
+      y: height * 0.5,
+      isCustom: false,
+      lastModified: new Date(),
+    },
   };
 }
 
@@ -327,5 +382,6 @@ export function clampPositionToBounds(
     x: Math.max(margin, Math.min(position.x, courtDimensions.width - margin)),
     y: Math.max(margin, Math.min(position.y, courtDimensions.height - margin)),
     isCustom: position.isCustom,
+    lastModified: position.lastModified || new Date(),
   };
 }

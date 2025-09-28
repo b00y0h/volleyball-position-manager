@@ -2,12 +2,14 @@
 
 import React, { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ValidationDisplay } from "@/components/ValidationDisplay";
+// import { ValidationDisplay } from "@/components/ValidationDisplay";
 import { ValidationLayerProps, ViolationData } from "./types";
 import {
   OverlapResult,
   Violation,
-} from "@/volleyball-rules-engine/types/ValidationResult";
+  ViolationCode,
+} from "./volleyball-rules-engine/types/ValidationResult";
+import { RotationSlot } from "./volleyball-rules-engine/types/PlayerState";
 
 export const ValidationLayer: React.FC<ValidationLayerProps> = ({
   violations,
@@ -25,12 +27,12 @@ export const ValidationLayer: React.FC<ValidationLayerProps> = ({
 
     // Convert ViolationData to Violation format
     const convertedViolations: Violation[] = violations.map((violation) => ({
-      code: violation.code,
+      code: violation.code as ViolationCode,
       message: violation.message,
       slots: violation.affectedPlayers.map((playerId) => {
         // Extract slot number from player ID if it follows a pattern like "player-1"
         const match = playerId.match(/(\d+)$/);
-        return match ? parseInt(match[1], 10) : 0;
+        return match ? (parseInt(match[1], 10) as RotationSlot) : 1;
       }),
       // Add empty coordinates since we don't have them in ViolationData
       coordinates: {},
@@ -73,13 +75,17 @@ export const ValidationLayer: React.FC<ValidationLayerProps> = ({
             </button>
           )}
 
-          {/* ValidationDisplay component */}
-          <ValidationDisplay
-            validationResult={validationResult}
-            onViolationClick={handleViolationClick}
-            showDetails={showDetails}
-            className="shadow-lg"
-          />
+          {/* ValidationDisplay component - temporarily replaced with simple display */}
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 shadow-lg">
+            <h3 className="text-red-800 font-medium mb-2">
+              Volleyball Rule Violations ({violations.length})
+            </h3>
+            {violations.map((violation, index) => (
+              <div key={index} className="text-red-700 text-sm mb-1">
+                • {violation.message}
+              </div>
+            ))}
+          </div>
         </div>
       </motion.div>
     </AnimatePresence>

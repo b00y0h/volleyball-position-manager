@@ -1,9 +1,9 @@
 /**
  * Volleyball Court Component Package
- * 
+ *
  * A comprehensive, reusable volleyball court visualization component library
  * designed for npm distribution with tree-shaking support and minimal dependencies.
- * 
+ *
  * @package @volleyball-visualizer/court
  * @version 1.0.0
  * @author Volleyball Visualizer Team
@@ -24,9 +24,9 @@ export { VolleyballCourt } from "./VolleyballCourt";
  * Provider component for advanced use cases requiring custom children
  * or direct access to court state and methods.
  */
-export { 
-  VolleyballCourtProvider, 
-  useVolleyballCourt 
+export {
+  VolleyballCourtProvider,
+  useVolleyballCourt,
 } from "./VolleyballCourtProvider";
 
 /**
@@ -125,13 +125,13 @@ export type {
   VolleyballCourtProps,
   VolleyballCourtConfig,
   VolleyballCourtState,
-  
+
   // Player and position types
   PlayerDefinition,
   PlayerPosition,
   PositionData,
   RotationMapping,
-  
+
   // Callback data types
   ViolationData,
   ShareData,
@@ -142,7 +142,7 @@ export type {
   ValidationStateData,
   ConfigurationChangeData,
   SystemChangeData,
-  
+
   // Configuration types
   CustomPlayersConfig,
   CustomRotationsConfig,
@@ -154,18 +154,18 @@ export type {
   PerformanceConfig,
   ExportConfig,
   LocalizationConfig,
-  
+
   // Visual and layout types
   PlayerColorConfig,
   CourtDimensions,
   ConstraintBoundaries,
   ConstraintLine,
   BoundingBox,
-  
+
   // Control component types
   ControlsLayerProps,
   ResetType,
-  
+
   // System and formation types
   SystemType,
   FormationType,
@@ -209,7 +209,7 @@ export const VolleyballCourtPresets = {
       showPositionLabels: false,
     },
   },
-  
+
   /**
    * Educational configuration with all features enabled
    */
@@ -235,7 +235,7 @@ export const VolleyballCourtPresets = {
       showPositionLabels: true,
     },
   },
-  
+
   /**
    * Presentation configuration optimized for displays
    */
@@ -257,7 +257,7 @@ export const VolleyballCourtPresets = {
       playerSize: 1.2,
     },
   },
-  
+
   /**
    * Mobile-optimized configuration
    */
@@ -274,7 +274,7 @@ export const VolleyballCourtPresets = {
       showConstraintBoundaries: false,
     },
   },
-  
+
   /**
    * High contrast configuration for accessibility
    */
@@ -282,10 +282,10 @@ export const VolleyballCourtPresets = {
     appearance: {
       theme: "dark" as const,
       playerColors: {
-        S: "#00ff00",      // Bright green for setter
-        Opp: "#ffff00",    // Bright yellow for opposite
-        OH: "#00ffff",     // Bright cyan for outside hitters
-        MB: "#ff00ff",     // Bright magenta for middle blockers
+        S: "#00ff00", // Bright green for setter
+        OPP: "#ffff00", // Bright yellow for opposite
+        OH: "#00ffff", // Bright cyan for outside hitters
+        MB: "#ff00ff", // Bright magenta for middle blockers
         violation: "#ff0000", // Bright red for violations
       },
       courtColor: "#000000",
@@ -307,7 +307,7 @@ export const VolleyballCourtPresets = {
 
 /**
  * Utility function to create a volleyball court with preset configuration
- * 
+ *
  * @param preset - The preset name to use
  * @param overrides - Optional configuration overrides
  * @returns Complete volleyball court configuration
@@ -317,13 +317,13 @@ export function createVolleyballCourtConfig(
   overrides?: Partial<VolleyballCourtConfig>
 ): VolleyballCourtConfig {
   const baseConfig = VolleyballCourtPresets[preset];
-  
+
   // Simple merge without ConfigurationManager dependency
   const merged = {
     ...baseConfig,
     ...overrides,
   } as VolleyballCourtConfig;
-  
+
   // Deep merge nested objects
   if (overrides?.controls && baseConfig.controls) {
     merged.controls = { ...baseConfig.controls, ...overrides.controls };
@@ -337,13 +337,13 @@ export function createVolleyballCourtConfig(
   if (overrides?.animation && baseConfig.animation) {
     merged.animation = { ...baseConfig.animation, ...overrides.animation };
   }
-  
+
   return merged;
 }
 
 /**
  * Utility function to validate a volleyball court configuration
- * 
+ *
  * @param config - The configuration to validate
  * @returns Validation result with errors and warnings
  */
@@ -351,20 +351,26 @@ export function validateVolleyballCourtConfig(config: VolleyballCourtConfig) {
   // Simple validation without ConfigurationManager dependency
   const errors: string[] = [];
   const warnings: string[] = [];
-  
+
   // Basic validation
-  if (config.initialSystem && !['5-1', '6-2'].includes(config.initialSystem)) {
+  if (config.initialSystem && !["5-1", "6-2"].includes(config.initialSystem)) {
     errors.push(`Invalid system: ${config.initialSystem}`);
   }
-  
-  if (config.initialRotation !== undefined && (config.initialRotation < 0 || config.initialRotation > 5)) {
+
+  if (
+    config.initialRotation !== undefined &&
+    (config.initialRotation < 0 || config.initialRotation > 5)
+  ) {
     errors.push(`Invalid rotation: ${config.initialRotation}`);
   }
-  
-  if (config.initialFormation && !['rotational', 'serveReceive', 'base'].includes(config.initialFormation)) {
+
+  if (
+    config.initialFormation &&
+    !["rotational", "serveReceive", "base"].includes(config.initialFormation)
+  ) {
     errors.push(`Invalid formation: ${config.initialFormation}`);
   }
-  
+
   return {
     isValid: errors.length === 0,
     errors,
@@ -374,7 +380,7 @@ export function validateVolleyballCourtConfig(config: VolleyballCourtConfig) {
 
 /**
  * Utility function to get all available configuration presets
- * 
+ *
  * @returns Object containing all preset configurations
  */
 export function getVolleyballCourtPresets() {

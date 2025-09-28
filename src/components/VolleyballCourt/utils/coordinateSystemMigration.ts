@@ -7,10 +7,10 @@ import {
   CustomPositionsState,
   PlayerPosition,
   StoredPositions,
-} from "@/types/positioning";
-import { StateConverter } from "@/volleyball-rules-engine/utils/StateConverter";
-import { CoordinateTransformer } from "@/volleyball-rules-engine/utils/CoordinateTransformer";
-import { COORDINATE_SYSTEM } from "@/volleyball-rules-engine/types/CoordinateSystem";
+} from "../types";
+import { StateConverter } from "../volleyball-rules-engine/utils/StateConverter";
+import { CoordinateTransformer } from "../volleyball-rules-engine/utils/CoordinateTransformer";
+import { COORDINATE_SYSTEM } from "../volleyball-rules-engine/types/CoordinateSystem";
 
 /**
  * Migration metadata for tracking coordinate system versions

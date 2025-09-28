@@ -91,12 +91,15 @@ export class VolleyballCourtErrorBoundary extends Component<
 
     // Create error data for callback
     const errorData: ErrorData = {
+      id: `error_${Date.now()}`,
       type: errorType,
       message: error.message,
       details: {
         stack: error.stack,
         componentStack: errorInfo.componentStack,
       },
+      timestamp: Date.now(),
+      severity: "high",
     };
 
     // Call optional error callback
@@ -210,6 +213,7 @@ export class VolleyballCourtErrorBoundary extends Component<
     // Use custom fallback if provided
     if (this.props.fallbackComponent) {
       const errorData: ErrorData = {
+        id: `error_${Date.now()}`,
         type:
           this.state.errorType === "validation"
             ? "validation"
@@ -218,6 +222,8 @@ export class VolleyballCourtErrorBoundary extends Component<
             : "unknown",
         message: this.state.errorMessage,
         details: this.state.errorDetails,
+        timestamp: Date.now(),
+        severity: "high",
       };
       return this.props.fallbackComponent(errorData, this.resetError);
     }

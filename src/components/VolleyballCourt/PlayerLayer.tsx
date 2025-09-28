@@ -1,15 +1,15 @@
 "use client";
 import React, { useMemo, useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { EnhancedDraggablePlayer } from "@/components/EnhancedDraggablePlayer";
-import { DragGuidelines } from "@/components/DragGuidelines";
+import { EnhancedDraggablePlayer } from "./EnhancedDraggablePlayer";
+import { DragGuidelines } from "./DragGuidelines";
 import { PlayerLayerProps } from "./types";
 import {
   VolleyballCourtRulesIntegration,
   type PositionValidationContext,
 } from "./VolleyballCourtRulesIntegration";
-import { RotationSlot } from "@/volleyball-rules-engine/types/PlayerState";
-import { useEnhancedPositionManager } from "@/hooks/useEnhancedPositionManager";
+import { RotationSlot } from "./volleyball-rules-engine/types/PlayerState";
+import { useEnhancedPositionManager } from "./hooks/useEnhancedPositionManager";
 
 /**
  * PlayerLayer component manages all player rendering and interactions

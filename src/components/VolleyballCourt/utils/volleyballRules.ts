@@ -3,7 +3,7 @@ import {
   FormationType,
   SystemType,
   PLAYER_RADIUS,
-} from "@/types";
+} from "../types";
 
 export interface VolleyballPosition {
   id: string;

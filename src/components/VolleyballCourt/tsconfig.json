@@ -21,15 +21,12 @@
     "jsx": "react-jsx",
     "lib": ["DOM", "DOM.Iterable", "ES6"],
     "types": ["vitest/globals"],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["../../../*"]
-    }
+    "baseUrl": "."
+    // "paths": {
+    //   "@/*": ["../../*"]
+    // }
   },
-  "include": [
-    "**/*.ts",
-    "**/*.tsx"
-  ],
+  "include": ["**/*.ts", "**/*.tsx"],
   "exclude": [
     "node_modules",
     "dist",

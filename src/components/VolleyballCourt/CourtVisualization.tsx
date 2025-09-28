@@ -99,7 +99,7 @@ export const CourtVisualization: React.FC<CourtVisualizationProps> = ({
       data-testid="volleyball-court-visualization"
       viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
       width="100%"
-      height="auto"
+      height={dimensions.height}
       className={`volleyball-court-svg ${className}`}
       style={{
         userSelect: "none",

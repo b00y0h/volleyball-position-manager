@@ -2,14 +2,14 @@
  * PersistenceManager - Handles URL state and localStorage persistence for VolleyballCourt component
  */
 
-import { URLStateManager } from "@/utils/URLStateManager";
-import { LocalStorageManager } from "@/utils/storage/LocalStorageManager";
+import { URLStateManager } from "./utils/URLStateManager";
+import { LocalStorageManager } from "./utils/storage/LocalStorageManager";
 import {
   SystemType,
   FormationType,
   PlayerPosition,
   CustomPositionsState,
-} from "@/types";
+} from "./types";
 import {
   VolleyballCourtConfig,
   PositionData,
@@ -208,6 +208,8 @@ export class VolleyballCourtPersistenceManager {
           rotation: state.rotation,
           formation: state.formation,
           positions: state.positions,
+          timestamp: Date.now(),
+          changeType: "manual",
         },
       };
     } catch (error) {
@@ -328,7 +330,11 @@ export class VolleyballCourtPersistenceManager {
         currentStoredData[state.system] = {};
       }
       if (!currentStoredData[state.system][state.rotation]) {
-        currentStoredData[state.system][state.rotation] = {};
+        currentStoredData[state.system][state.rotation] = {
+          rotational: {},
+          serveReceive: {},
+          base: {},
+        };
       }
 
       currentStoredData[state.system][state.rotation][state.formation] =

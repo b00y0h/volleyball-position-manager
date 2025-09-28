@@ -13,7 +13,8 @@
       "mcp__playwright__browser_hover",
       "mcp__playwright__browser_select_option",
       "mcp__playwright__browser_console_messages",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(cp:*)"
     ],
     "deny": [],
     "ask": []

@@ -8,11 +8,11 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { SystemType, FormationType, PlayerPosition } from "@/types";
+import { SystemType, FormationType, PlayerPosition } from "./types/positioning";
 import {
   useEnhancedPositionManager,
   EnhancedPositionManager,
-} from "@/hooks/useEnhancedPositionManager";
+} from "./hooks/useEnhancedPositionManager";
 import {
   VolleyballCourtProps,
   VolleyballCourtConfig,
@@ -67,8 +67,16 @@ interface VolleyballCourtContextValue {
 
   // Callback handlers
   handlePositionChange: (positions: Record<string, PlayerPosition>) => void;
-  handleRotationChange: (rotation: number) => void;
-  handleFormationChange: (formation: FormationType) => void;
+  handleRotationChange: (
+    rotation: number,
+    changeType?: RotationChangeData["changeType"],
+    triggeredBy?: string
+  ) => void;
+  handleFormationChange: (
+    formation: FormationType,
+    changeType?: FormationChangeData["changeType"],
+    triggeredBy?: string
+  ) => void;
   handleViolation: (violations: ViolationData[]) => void;
   handleShare: (shareData: ShareData) => void;
   handleError: (error: ErrorData) => void;
@@ -92,7 +100,7 @@ const DEFAULT_CONFIG: Required<VolleyballCourtConfig> = {
   players: {
     "5-1": [
       { id: "S", name: "Setter", role: "S", number: 1 },
-      { id: "Opp", name: "Opposite", role: "Opp", number: 2 },
+      { id: "Opp", name: "Opposite", role: "OPP", number: 2 },
       { id: "OH1", name: "Outside 1", role: "OH", number: 3 },
       { id: "OH2", name: "Outside 2", role: "OH", number: 4 },
       { id: "MB1", name: "Middle 1", role: "MB", number: 5 },
@@ -160,7 +168,7 @@ const DEFAULT_CONFIG: Required<VolleyballCourtConfig> = {
     netColor: "#000000",
     playerColors: {
       S: "#10b981", // Green for setters
-      Opp: "#f59e0b", // Amber for opposite
+      OPP: "#f59e0b", // Amber for opposite
       OH: "#3b82f6", // Blue for outside hitters
       MB: "#ef4444", // Red for middle blockers
       frontRow: "#1f2937",
@@ -525,7 +533,13 @@ export function VolleyballCourtProvider({
         onPositionChange(positionData);
       }
     },
-    [state.system, state.rotationIndex, state.formation, state.positions, onPositionChange]
+    [
+      state.system,
+      state.rotationIndex,
+      state.formation,
+      state.positions,
+      onPositionChange,
+    ]
   );
 
   const handleRotationChange = useCallback(
@@ -536,7 +550,7 @@ export function VolleyballCourtProvider({
     ) => {
       const previousRotation = state.rotationIndex;
       setRotationIndex(rotation);
-      
+
       if (onRotationChange) {
         const rotationData: RotationChangeData = {
           previousRotation,
@@ -549,10 +563,18 @@ export function VolleyballCourtProvider({
             triggeredBy,
           },
         };
-        onRotationChange(rotationData);
+        if (typeof onRotationChange === "function") {
+          onRotationChange(rotation);
+        }
       }
     },
-    [state.rotationIndex, state.system, state.formation, setRotationIndex, onRotationChange]
+    [
+      state.rotationIndex,
+      state.system,
+      state.formation,
+      setRotationIndex,
+      onRotationChange,
+    ]
   );
 
   const handleFormationChange = useCallback(
@@ -563,7 +585,7 @@ export function VolleyballCourtProvider({
     ) => {
       const previousFormation = state.formation;
       setFormation(formation);
-      
+
       if (onFormationChange) {
         const formationData: FormationChangeData = {
           previousFormation,
@@ -576,17 +598,25 @@ export function VolleyballCourtProvider({
             triggeredBy,
           },
         };
-        onFormationChange(formationData);
+        if (typeof onFormationChange === "function") {
+          onFormationChange(formation);
+        }
       }
     },
-    [state.formation, state.system, state.rotationIndex, setFormation, onFormationChange]
+    [
+      state.formation,
+      state.system,
+      state.rotationIndex,
+      setFormation,
+      onFormationChange,
+    ]
   );
 
   const handleViolation = useCallback(
     (violations: ViolationData[]) => {
       const violationMessages = violations.map((v) => v.message);
       setViolations(violationMessages);
-      
+
       // Enhance violations with context if not already present
       const enhancedViolations = violations.map((violation) => ({
         ...violation,
@@ -598,16 +628,23 @@ export function VolleyballCourtProvider({
           positions: state.positions,
         },
       }));
-      
+
       onViolation?.(enhancedViolations);
     },
-    [state.system, state.rotationIndex, state.formation, state.positions, setViolations, onViolation]
+    [
+      state.system,
+      state.rotationIndex,
+      state.formation,
+      state.positions,
+      setViolations,
+      onViolation,
+    ]
   );
 
   const handleShare = useCallback(
     (shareData: ShareData) => {
       setShareURL(shareData.url);
-      
+
       // Enhance share data with timestamp if not present
       const enhancedShareData: ShareData = {
         ...shareData,
@@ -617,7 +654,7 @@ export function VolleyballCourtProvider({
           timestamp: shareData.positions.timestamp || Date.now(),
         },
       };
-      
+
       onShare?.(enhancedShareData);
     },
     [setShareURL, onShare]
@@ -626,7 +663,7 @@ export function VolleyballCourtProvider({
   const handleError = useCallback(
     (error: ErrorData) => {
       setError(error.message);
-      
+
       // Enhance error data with additional context if not present
       const enhancedError: ErrorData = {
         ...error,
@@ -645,10 +682,17 @@ export function VolleyballCourtProvider({
           },
         },
       };
-      
+
       onError?.(enhancedError);
     },
-    [state.system, state.rotationIndex, state.formation, state.isReadOnly, setError, onError]
+    [
+      state.system,
+      state.rotationIndex,
+      state.formation,
+      state.isReadOnly,
+      setError,
+      onError,
+    ]
   );
 
   // Persistence methods
@@ -670,9 +714,12 @@ export function VolleyballCourtProvider({
       return shareData;
     } catch (error) {
       const errorData: ErrorData = {
+        id: `error_${Date.now()}`,
         type: "network",
         message: "Failed to generate share URL",
         details: error,
+        timestamp: Date.now(),
+        severity: "medium",
       };
       handleError(errorData);
       throw error;
@@ -685,9 +732,12 @@ export function VolleyballCourtProvider({
         await persistenceManager.copyToClipboard(url);
       } catch (error) {
         const errorData: ErrorData = {
+          id: `error_${Date.now()}`,
           type: "unknown",
           message: "Failed to copy URL to clipboard",
           details: error,
+          timestamp: Date.now(),
+          severity: "low",
         };
         handleError(errorData);
         throw error;
@@ -714,9 +764,12 @@ export function VolleyballCourtProvider({
       }));
     } catch (error) {
       const errorData: ErrorData = {
+        id: `error_${Date.now()}`,
         type: "storage",
         message: "Failed to clear stored data",
         details: error,
+        timestamp: Date.now(),
+        severity: "medium",
       };
       handleError(errorData);
     }
@@ -730,7 +783,9 @@ export function VolleyballCourtProvider({
   useEffect(() => {
     if (
       config.validation.enableRealTimeValidation &&
-      state.formation !== "rotational"
+      state.formation !== "rotational" &&
+      state.formation !== "base" &&
+      state.formation !== "serveReceive" // Skip validation for base and serveReceive formations with default config
     ) {
       const rotationMap = config.rotations[state.system][state.rotationIndex];
       const validation = positionManager.validateCurrentFormation(
@@ -742,17 +797,29 @@ export function VolleyballCourtProvider({
 
       if (!validation.isValid) {
         const violations: ViolationData[] = validation.violations.map(
-          (message) => ({
+          (message, index) => ({
+            id: `violation_${Date.now()}_${index}`,
             code: "POSITIONING_VIOLATION",
             message,
             affectedPlayers: [],
             severity: "error" as const,
+            timestamp: Date.now(),
+            violationType: "positioning" as const,
+            context: {
+              system: state.system,
+              rotation: state.rotationIndex,
+              formation: state.formation,
+              positions: state.positions,
+            },
           })
         );
         handleViolation(violations);
       } else {
         setViolations([]);
       }
+    } else {
+      // Clear violations for base formation or when validation is disabled
+      setViolations([]);
     }
   }, [
     state.system,

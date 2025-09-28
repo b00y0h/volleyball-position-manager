@@ -1,9 +1,9 @@
 /**
  * Configuration presets exports for tree-shaking optimization
- * 
+ *
  * This module exports pre-built configuration presets and
  * related utility functions.
- * 
+ *
  * @module @volleyball-visualizer/court/presets
  */
 
@@ -34,7 +34,7 @@ export const VolleyballCourtPresets = {
       showPositionLabels: false,
     },
   },
-  
+
   /**
    * Educational configuration with all features enabled
    */
@@ -60,7 +60,7 @@ export const VolleyballCourtPresets = {
       showPositionLabels: true,
     },
   },
-  
+
   /**
    * Presentation configuration optimized for displays
    */
@@ -82,7 +82,7 @@ export const VolleyballCourtPresets = {
       playerSize: 1.2,
     },
   },
-  
+
   /**
    * Mobile-optimized configuration
    */
@@ -99,7 +99,7 @@ export const VolleyballCourtPresets = {
       showConstraintBoundaries: false,
     },
   },
-  
+
   /**
    * High contrast configuration for accessibility
    */
@@ -107,10 +107,10 @@ export const VolleyballCourtPresets = {
     appearance: {
       theme: "dark" as const,
       playerColors: {
-        S: "#00ff00",      // Bright green for setter
-        Opp: "#ffff00",    // Bright yellow for opposite
-        OH: "#00ffff",     // Bright cyan for outside hitters
-        MB: "#ff00ff",     // Bright magenta for middle blockers
+        S: "#00ff00", // Bright green for setter
+        OPP: "#ffff00", // Bright yellow for opposite
+        OH: "#00ffff", // Bright cyan for outside hitters
+        MB: "#ff00ff", // Bright magenta for middle blockers
         violation: "#ff0000", // Bright red for violations
       },
       courtColor: "#000000",
@@ -124,7 +124,7 @@ export const VolleyballCourtPresets = {
       enableScreenReader: true,
     },
   },
-  
+
   /**
    * Performance optimized configuration for large displays
    */
@@ -141,7 +141,7 @@ export const VolleyballCourtPresets = {
       throttleMs: 50,
     },
   },
-  
+
   /**
    * Coaching configuration with full analytics
    */
@@ -176,7 +176,7 @@ export const VolleyballCourtPresets = {
 
 /**
  * Utility function to create a volleyball court with preset configuration
- * 
+ *
  * @param preset - The preset name to use
  * @param overrides - Optional configuration overrides
  * @returns Complete volleyball court configuration
@@ -186,13 +186,13 @@ export function createVolleyballCourtConfig(
   overrides?: Partial<VolleyballCourtConfig>
 ): VolleyballCourtConfig {
   const baseConfig = VolleyballCourtPresets[preset];
-  
+
   // Simple merge without ConfigurationManager dependency
   const merged = {
     ...baseConfig,
     ...overrides,
   } as VolleyballCourtConfig;
-  
+
   // Deep merge nested objects
   if (overrides?.controls && baseConfig.controls) {
     merged.controls = { ...baseConfig.controls, ...overrides.controls };
@@ -206,13 +206,13 @@ export function createVolleyballCourtConfig(
   if (overrides?.animation && baseConfig.animation) {
     merged.animation = { ...baseConfig.animation, ...overrides.animation };
   }
-  
+
   return merged;
 }
 
 /**
  * Utility function to get all available configuration presets
- * 
+ *
  * @returns Object containing all preset configurations
  */
 export function getVolleyballCourtPresets() {
@@ -221,19 +221,23 @@ export function getVolleyballCourtPresets() {
 
 /**
  * Utility function to list available preset names
- * 
+ *
  * @returns Array of preset names
  */
 export function getPresetNames(): (keyof typeof VolleyballCourtPresets)[] {
-  return Object.keys(VolleyballCourtPresets) as (keyof typeof VolleyballCourtPresets)[];
+  return Object.keys(
+    VolleyballCourtPresets
+  ) as (keyof typeof VolleyballCourtPresets)[];
 }
 
 /**
  * Utility function to validate a preset name
- * 
+ *
  * @param preset - The preset name to validate
  * @returns True if the preset exists
  */
-export function isValidPreset(preset: string): preset is keyof typeof VolleyballCourtPresets {
+export function isValidPreset(
+  preset: string
+): preset is keyof typeof VolleyballCourtPresets {
   return preset in VolleyballCourtPresets;
 }

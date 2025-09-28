@@ -3,14 +3,13 @@
  */
 
 import React from "react";
-import { SystemType, FormationType } from "@/types";
-import { ControlsLayerProps, ResetType } from "./types";
+import { ControlsLayerProps } from "./types";
 import { SystemSelector } from "./controls/SystemSelector";
 import { RotationControls } from "./controls/RotationControls";
 import { FormationSelector } from "./controls/FormationSelector";
 import { ShareButton } from "./controls/ShareButton";
 import { AnimationControls } from "./controls/AnimationControls";
-import { ResetButton } from "@/components/ResetButton";
+import { ResetButton } from "./ResetButton";
 
 export const ControlsLayer: React.FC<ControlsLayerProps> = ({
   system,
@@ -111,10 +110,58 @@ export const ControlsLayer: React.FC<ControlsLayerProps> = ({
               system={system}
               rotation={rotationIndex}
               formation={formation}
-              onResetCurrentRotation={() => onReset("current")}
-              onResetAllRotations={() => onReset("all")}
-              onResetSelectedFormation={() => onReset("formation")}
-              onResetSystem={() => onReset("system")}
+              onResetCurrentRotation={async () => {
+                try {
+                  onReset("current");
+                  return { success: true, affectedPositions: 1 };
+                } catch (error) {
+                  return {
+                    success: false,
+                    affectedPositions: 0,
+                    error:
+                      error instanceof Error ? error.message : "Reset failed",
+                  };
+                }
+              }}
+              onResetAllRotations={async () => {
+                try {
+                  onReset("all");
+                  return { success: true, affectedPositions: 6 };
+                } catch (error) {
+                  return {
+                    success: false,
+                    affectedPositions: 0,
+                    error:
+                      error instanceof Error ? error.message : "Reset failed",
+                  };
+                }
+              }}
+              onResetSelectedFormation={async () => {
+                try {
+                  onReset("formation");
+                  return { success: true, affectedPositions: 6 };
+                } catch (error) {
+                  return {
+                    success: false,
+                    affectedPositions: 0,
+                    error:
+                      error instanceof Error ? error.message : "Reset failed",
+                  };
+                }
+              }}
+              onResetSystem={async () => {
+                try {
+                  onReset("system");
+                  return { success: true, affectedPositions: 18 }; // 6 rotations × 3 formations
+                } catch (error) {
+                  return {
+                    success: false,
+                    affectedPositions: 0,
+                    error:
+                      error instanceof Error ? error.message : "Reset failed",
+                  };
+                }
+              }}
               isDisabled={isAnimating}
               hasCustomizations={{
                 currentRotation: false, // Will be passed from parent
@@ -124,8 +171,8 @@ export const ControlsLayer: React.FC<ControlsLayerProps> = ({
               }}
               canUndo={false} // Will be passed from parent
               canRedo={false}
-              onUndo={() => {}} // Will be passed from parent
-              onRedo={() => {}}
+              onUndo={async () => false} // Will be passed from parent
+              onRedo={async () => false}
               onShowPreview={() => {}} // Will be passed from parent
               getAffectedPositions={() => []} // Will be passed from parent
             />
